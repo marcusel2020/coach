@@ -109,6 +109,17 @@ svg.chart{width:100%;display:block;overflow:visible;touch-action:none}
 .tip{position:fixed;z-index:50;background:var(--raised);border:1px solid var(--border);border-radius:9px;
   padding:7px 10px;font-size:12.5px;pointer-events:none;opacity:0;transition:opacity .1s;box-shadow:0 6px 20px rgba(0,0,0,.5)}
 .legendless{font-size:12px;color:var(--muted);margin-top:6px}
+.feel{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:10px}
+.fbtn{background:var(--surface-2);border:1px solid var(--border);border-radius:11px;padding:9px 2px 7px;
+  color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;font:inherit}
+.fbtn span{font-size:9.5px;font-weight:600;letter-spacing:.01em}
+.fbtn.on{color:var(--series-1);border-color:var(--series-1);background:rgba(57,135,229,.10)}
+.fbtn:active{opacity:.7}
+.swap{display:flex;gap:8px;align-items:center;margin-top:9px;padding-top:9px;border-top:1px solid var(--border)}
+.swap button{flex:1;font:inherit;font-size:12.5px;font-weight:600;background:transparent;border:1px solid var(--border);
+  color:var(--ink-2);border-radius:9px;padding:7px 8px;cursor:pointer}
+.swap button:active{opacity:.6}
+.swap .step{font-size:11px;color:var(--muted);white-space:nowrap;font-weight:600}
 
 details{border:1px solid var(--border);border-radius:11px;padding:12px;background:var(--surface);margin-bottom:10px}
 summary{cursor:pointer;font-weight:600;font-size:15px;list-style:none}
@@ -144,7 +155,7 @@ td.num{overflow-wrap:anywhere}
   <button data-tab="today" aria-selected="true"><svg viewBox="0 0 24 24"><path d="M12 3v18M5 8v8M19 8v8"/><rect x="2" y="10" width="3" height="4" rx="1"/><rect x="19" y="10" width="3" height="4" rx="1"/></svg>Today</button>
   <button data-tab="week"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Week</button>
   <button data-tab="progress"><svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 4 8-9"/><path d="M21 6v5h-5"/></svg>Progress</button>
-  <button data-tab="stake"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.8 1.8 0 010 3.6h-3a1.8 1.8 0 000 3.6h4"/></svg>Stake</button>
+  <button data-tab="club"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/></svg>Club</button>
   <button data-tab="plan"><svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10"/></svg>Plan</button>
   <button data-tab="sync"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 01-13.7 5.7M4 12a8 8 0 0113.7-5.7"/><path d="M17 3v4h-4M7 21v-4h4"/></svg><span style="position:relative">Sync<i id="syncDot" style="position:absolute;top:-1px;right:-8px;width:5px;height:5px;border-radius:50%;background:var(--muted)"></i></span></button>
 </nav>
@@ -173,37 +184,109 @@ const PROGRAMME={
   gymA:{
     id:'gymA', label:'Gym — Day A', sub:'Lower-body led · main strength session',
     ex:[
-      {n:'Back Squat',           t:'3 × 5',      k:'squat',  note:'RPE 8. Goblet squat first 2–3 weeks if technique needs work. Power rack.'},
-      {n:'DB Romanian Deadlift', t:'3 × 6',      k:'rdl',    note:'RPE 7 — controlled, not to failure. Barbell RDL once form is solid.'},
-      {n:'Chest Press',          t:'3 × 8',      k:'chest',  note:'Technogym Selection. DB bench press as alternative.'},
-      {n:'Lat Pulldown',         t:'3 × 8',      k:'pull',   note:'Technogym Selection, or cable trainer high pulley.'},
-      {n:'Pallof Press',         t:'2 × 10/side',k:'pallof', note:'Cable trainer, pulley at chest height. Anti-rotation core.'}
+      {n:'Back Squat', t:'3 × 5', k:'squat',
+       note:'RPE 8 — the main strength driver. Olympic rack. Goblet squat for the first 2–3 weeks if technique needs work.',
+       alts:[
+        {n:'Linear Hack Squat', note:'Plate-loaded. Same pattern with the back supported — you will handle more load than free-squatting.'},
+        {n:'Seated Leg Press',  note:'Fewer stabiliser demands, so go heavier. Full range, do not bounce out of the bottom.'},
+        {n:'Goblet Squat',      note:'DB at chest, free weights area. Grip limits load, so run 3 × 10 instead.'}
+       ]},
+      {n:'Dumbbell Romanian Deadlift', t:'3 × 6', k:'rdl',
+       note:'RPE 7 — controlled, not to failure. Hinge at the hip, soft knees, feel the hamstrings load.',
+       alts:[
+        {n:'Barbell RDL',            note:'Same movement off the rack. Better once your form is grooved.'},
+        {n:'Single-leg DB RDL',      note:'3 × 8/leg with a lighter DB. Adds a balance demand that carries to cutting.'},
+        {n:'Seated Leg Curl',        note:'Machine. Knee-flexion rather than a hinge — different emphasis, but it still trains the hamstrings.'}
+       ]},
+      {n:'Chest Press', t:'3 × 8', k:'chest',
+       note:'Assisted/pin-loaded machine. Controlled down, drive up.',
+       alts:[
+        {n:'DB Bench Press',    note:'Adjustable bench, flat. More stabiliser work than the machine.'},
+        {n:'Incline Press',     note:'Plate-loaded. More upper chest and shoulder.'},
+        {n:'Barbell Bench Press', note:'Raised bench press station. Use a spotter or stay well short of failure.'}
+       ]},
+      {n:'Lat Pulldown', t:'3 × 8', k:'pull',
+       note:'Pin-loaded. Pull to the collarbone, elbows down rather than back.',
+       alts:[
+        {n:'Assisted Chin-up', note:'Machine. Closer to the real thing — use the least assistance you can manage.'},
+        {n:'Pulldown (other station)', note:'The second pulldown machine — same pattern, different handle.'},
+        {n:'Cable Low Row',    note:'Horizontal rather than vertical pull. Not identical, but it keeps the back working.'}
+       ]},
+      {n:'Pallof Press', t:'2 × 10/side', k:'pallof',
+       note:'Cable at chest height. Resist the rotation — that is the whole exercise.',
+       alts:[
+        {n:'Cable Crossover (single arm)', note:'Set one side at chest height. Same anti-rotation demand.'},
+        {n:'Abdominal Machine',           note:'Flexion rather than anti-rotation. A lesser substitute, but it beats nothing.'},
+        {n:'Dead Bug',                    note:'Floor, no equipment. 2 × 10/side, slow. Never unavailable.'}
+       ]}
     ],
-    tip:'On Wednesday (24h before Thursday) keep the squat at RPE 7–8 — don’t chase a PR. If you pulled this forward to Tuesday you have 48h before Thursday: that’s the week to push the top set.'
+    tip:'Friday sits 3 days before Monday’s game — the most recovery any slot gives your legs before the session that matters most. You are 24h off Thursday’s game so you will not feel fresh; train to a solid RPE 8, do not chase a PR on tired legs.'
   },
   gymB:{
     id:'gymB', label:'Gym — Day B', sub:'Upper-body led · legs kept fresh',
     ex:[
-      {n:'Shoulder Press',        t:'3 × 6–8',  k:'ohp',    note:'Technogym Selection, or DB overhead press.'},
-      {n:'Seated Row',            t:'3 × 8–10', k:'row',    note:'Technogym Selection, or cable trainer low pulley.'},
-      {n:'Chest Press / Assisted Dip', t:'3 × 8–10', k:'push2', note:'Second push movement — alternate across the block.'},
-      {n:'Standing DB Calf Raise',t:'3 × 12–15',k:'calf',   note:'Low systemic fatigue, direct ankle resilience.'},
-      {n:'Farmer’s Carry',   t:'2 × 20–30m',k:'carry',  note:'DBs or kettlebells. Grip + trunk, minimal leg cost.'}
+      {n:'Shoulder Press', t:'3 × 6–8', k:'ohp',
+       note:'Pin-loaded machine. Press without letting the ribs flare.',
+       alts:[
+        {n:'DB Overhead Press',  note:'Seated, adjustable bench upright. More stabiliser demand.'},
+        {n:'Incline Press (steep)', note:'Plate-loaded at the steepest setting — close to an overhead press.'},
+        {n:'Standing Barbell Press', note:'From the rack. Hardest version, so drop the load.'}
+       ]},
+      {n:'Seated Row', t:'3 × 8–10', k:'row',
+       note:'Pin-loaded. Chest tall, pull to the stomach, squeeze briefly.',
+       alts:[
+        {n:'Cable Low Row',      note:'Same movement, cable resistance. Do not lean back to move the weight.'},
+        {n:'Plate-loaded Row',   note:'Chest-supported. Takes the lower back out of it entirely.'},
+        {n:'Single-arm DB Row',  note:'Hand on a bench, 3 × 10/arm. Also evens out side-to-side differences.'}
+       ]},
+      {n:'Assisted Dip', t:'3 × 8–10', k:'push2',
+       note:'Second push movement. Use the least assistance you can control.',
+       alts:[
+        {n:'Chest Press',   note:'Machine. Straightforward swap.'},
+        {n:'Incline Press', note:'Plate-loaded. Shifts emphasis higher on the chest.'},
+        {n:'DB Bench Press', note:'Adjustable bench, flat.'}
+       ]},
+      {n:'Standing DB Calf Raise', t:'3 × 12–15', k:'calf',
+       note:'Full stretch at the bottom, pause at the top. Direct ankle resilience.',
+       alts:[
+        {n:'Leg Press Calf Raise', note:'Toes on the edge of the seated leg press platform. Easy to load heavy.'},
+        {n:'Single-leg Step Calf Raise', note:'Bodyweight off a step, 3 × 12/leg. Needs nothing at all.'}
+       ]},
+      {n:'Farmer’s Carry', t:'2 × 20–30m', k:'carry',
+       note:'Heavy DBs or kettlebells. Tall posture, brace, walk. Grip and trunk with minimal leg cost.',
+       alts:[
+        {n:'Suitcase Carry',   note:'One DB only, 2 × 20m/side. Harder on the trunk than a two-handed carry.'},
+        {n:'Heavy DB Hold',    note:'Stand and hold for 3 × 30s if space is tight.'},
+        {n:'Abdominal Machine', note:'Not a carry, but it keeps the trunk working when the floor is packed.'}
+       ]}
     ],
-    tip:'No squats, split squats or heavy hinging here by design — Monday’s 2h game is 24h away and it is the priority.'
+    tip:'No squats or heavy hinging here by design — Thursday’s game is 24h away and your legs need to be fresh for it.'
   },
   bball:{ id:'bball', label:'Basketball', sub:'2 hours · the priority', ex:[], tip:'This is what the whole programme serves. Turn up fresh.' },
-  run:{   id:'run',   label:'Run — 5km',  sub:'Easy pace · tracked on Strava', ex:[],
-          tip:'Conversational pace. This is aerobic base, not a race — pushing it leaves you flat for Sunday and Monday.'},
-  flex:{  id:'flex',  label:'Flex day',   sub:'Ad-hoc basketball, or pull Day A forward', ex:[],
-          tip:'If you already know you are not playing, do Day A today and rest Wednesday — that gives Thursday 48h. Do not do both Tuesday and Wednesday as separate gym sessions.'},
+  open:{  id:'open',  label:'Open day',   sub:'Nothing required — extras only if you fancy them', ex:[],
+          tip:'Rest is doing work here. Anything you add today is a bonus, never an obligation.'},
   rest:{  id:'rest',  label:'Rest / Reset', sub:'Recovery is part of the plan', ex:[],
           tip:'Deliberate. Walk if you like, but nothing that costs recovery.'}
 };
 // 0=Sun … 6=Sat
-const SCHEDULE={1:'bball',2:'flex',3:'gymA',4:'bball',5:'rest',6:'run',0:'gymB'};
+const SCHEDULE={1:'bball',2:'open',3:'gymB',4:'bball',5:'gymA',6:'open',0:'open'};
+
+/* Optional extras. These NEVER count against you — they only ever earn credit. */
+const BONUS={
+  blaze:  {label:'BLAZE class',      sub:'45 min · HIIT, boxing, treadmill, strength'},
+  yoga:   {label:'Yoga class',       sub:'Hips and ankles — feeds squat depth and landing'},
+  run:    {label:'Easy 5km',         sub:'Conversational pace, tracked on Strava'},
+  swim:   {label:'Swim',             sub:'Indoor or the heated outdoor pool'},
+  sauna:  {label:'Sauna',            sub:'Finnish, fire & ice, citrus or salt'},
+  plunge: {label:'Cold plunge',      sub:'10°C — not straight after lifting (see Plan)'},
+  hottub: {label:'Hot tub',          sub:'Low effort, genuinely relaxing'},
+  massage:{label:'Massage gun / roller', sub:'Soreness relief on stiff days'},
+  racquet:{label:'Tennis / badminton / pickleball', sub:'Bonus movement — watch fatigue before games'}
+};
+// What's suggested on each day (0=Sun … 6=Sat)
+const SUGGEST={1:[],2:['blaze','swim'],3:[],4:[],5:['sauna','massage'],6:['run','yoga','racquet'],0:['sauna','hottub','swim']};
 // The four commitments a week is scored on
-const CORE=[{dow:1,type:'bball'},{dow:3,type:'gymA'},{dow:4,type:'bball'},{dow:0,type:'gymB'}];
+const CORE=[{dow:1,type:'bball'},{dow:3,type:'gymB'},{dow:4,type:'bball'},{dow:5,type:'gymA'}];
 
 const NUTRITION={kcal:2200,protein:175,fat:70,carbs:215};
 
@@ -230,13 +313,31 @@ function weekNum(d){
    ============================================================ */
 let DB=Store.get('coach.db',null)||{
   log:{},          // 'YYYY-MM-DD': {type, done:true, sets:{key:[{w,r}]}, rpe}
-  weights:{},      // 'YYYY-MM-DD': kg
+  weights:{},      // 'YYYY-MM-DD': lb
+  bodyfat:{},      // 'YYYY-MM-DD': % from the Body Hub scanner
   away:[],         // [{from,to,reason}]
-  stake:{ enabled:true, amount:15, currency:'£', cause:'', paid:0, escalate:true },
-  settings:{ startWeight:79.4, goalWeight:72 },
+  membership:{ annualCost:3746, myShare:1873, basis:'share', currency:'£', start:'2026-08-17', altMonthly:45, targetPerVisit:15 },
+  visits:[],
+  bonus:{},          // 'YYYY-MM-DD': ['blaze','spa'] — optional extras, never scored against you
+  settings:{ startWeight:175, goalWeight:159, unitMigrated:true },
   updatedAt:0
 };
 const save=()=>{ DB.updatedAt=Date.now(); Store.set('coach.db',DB); if(window.Cloud) Cloud.queue(); };
+
+// One-time migration: body weight used to be stored in kg, now lb.
+// Lifting loads stay in kg and are untouched.
+DB.bodyfat=DB.bodyfat||{};
+if(!DB.settings.unitMigrated){
+  const K=2.20462;
+  Object.keys(DB.weights||{}).forEach(d=>{
+    const v=parseFloat(DB.weights[d]);
+    if(!isNaN(v)) DB.weights[d]=Math.round(v*K*10)/10;
+  });
+  if(DB.settings.startWeight) DB.settings.startWeight=Math.round(DB.settings.startWeight*K);
+  if(DB.settings.goalWeight)  DB.settings.goalWeight =Math.round(DB.settings.goalWeight*K);
+  DB.settings.unitMigrated=true;
+  Store.set('coach.db',DB);
+}
 
 const isAway=s=>DB.away.some(a=>s>=a.from&&s<=a.to);
 function weekAway(mondayISO){
@@ -255,7 +356,7 @@ function weekPartlyAway(mondayISO){
    ------------------------------------------------------------
    Four core commitments a week (Mon bball, Day A, Thu bball, Day B).
    3 of 4  → on track. One miss is free, by design.
-   ≤2 of 4 → off track, and the stake triggers.
+   ≤2 of 4 → off track.
    A week flagged as away in advance is excused entirely.
    Consecutive off-track weeks escalate ×1 → ×1.5 → ×2 (capped).
    ============================================================ */
@@ -274,10 +375,10 @@ function weekStatus(mondayISO){
     if(isAway(ds)) return;           // excused day doesn't count against you
     if(ds<=today) due++;
     const e=DB.log[ds];
-    // Day A counts if done Tue OR Wed (the flex rule)
-    if(c.type==='gymA'){
-      const tue=DB.log[days[1]], wed=DB.log[days[2]];
-      if((tue&&tue.done&&tue.type==='gymA')||(wed&&wed.done&&wed.type==='gymA')) hit++;
+    // Gym sessions count wherever in the week you actually did them —
+    // the day is a default, not a requirement. Basketball is date-fixed.
+    if(c.type==='gymA'||c.type==='gymB'){
+      if(days.some(dd=>{const x=DB.log[dd];return x&&x.done&&x.type===c.type;})) hit++;
     } else if(e&&e.done) hit++;
   });
 
@@ -297,21 +398,126 @@ function allWeeks(){
   return out;
 }
 
-function stakeLedger(){
-  const rows=[]; let streak=0;
-  allWeeks().forEach(w=>{
-    const s=weekStatus(w);
-    if(!s.complete) return;
-    if(s.state==='away'){ rows.push({w,state:'away',amt:0,note:'Flagged in advance — excused'}); streak=0; return; }
-    if(s.state==='ontrack'){ rows.push({w,state:'ontrack',amt:0,note:`${s.hit}/${s.of} completed`}); streak=0; return; }
-    streak++;
-    const mult=!DB.stake.escalate?1:(streak===1?1:streak===2?1.5:2);
-    rows.push({w,state:'offtrack',amt:DB.stake.amount*mult,streak,mult,
-      note:`${s.hit}/${s.of} completed${mult>1?` · ${mult}× (${streak} weeks running)`:''}`});
+/* ============================================================
+   MEMBERSHIP ECONOMICS
+   ------------------------------------------------------------
+   Not a forfeit — a utilisation read. Sunk cost does not drive
+   behaviour, but knowing your real cost-per-visit does tell you
+   honestly whether the membership is earning its place.
+   ============================================================ */
+const CLUB_TYPES=['gymA','gymB','flexGym'];
+
+function clubVisits(){
+  const m=DB.membership, out=[];
+  Object.keys(DB.log).forEach(d=>{
+    const e=DB.log[d];
+    if(e&&e.done&&CLUB_TYPES.includes(e.type)&&d>=m.start) out.push({date:d,type:e.type});
   });
-  return rows;
+  (DB.visits||[]).forEach(v=>{ if(v.date>=m.start) out.push(v); });
+  return out.sort((a,b)=>a.date<b.date?-1:1);
 }
-const owed=()=>stakeLedger().reduce((t,r)=>t+r.amt,0)-(DB.stake.paid||0);
+
+function membershipStats(){
+  const m=DB.membership, t=todayISO();
+  const v=clubVisits();
+  const days=Math.max(1,Math.round((parse(t)-parse(m.start))/86400000)+1);
+  // The whole year's cost, divided by visits so far. Starts enormous, falls every
+  // time you turn up. That fall IS the metric.
+  const basis = m.basis==='total' ? m.annualCost : m.myShare;
+  const costPer = v.length ? basis/v.length : null;
+  const perDay=v.length/days;
+  const projected=Math.max(v.length,Math.round(perDay*365));
+  const projCostPer = projected ? basis/projected : null;
+  const target=m.targetPerVisit||15;
+  const visitsNeeded=Math.ceil(basis/target);
+  const stillNeeded=Math.max(0,visitsNeeded-v.length);
+  const perWeekNeeded=visitsNeeded/52;
+  const altAnnual=m.altMonthly*12;
+  const premium=basis-altAnnual;
+  const thisMonth=v.filter(x=>x.date.slice(0,7)===t.slice(0,7)).length;
+  // what one more visit does to the number
+  const nextCostPer = basis/(v.length+1);
+  return{visits:v,days,basis,costPer,projected,projCostPer,thisMonth,
+         altAnnual,premium,target,visitsNeeded,stillNeeded,perWeekNeeded,nextCostPer};
+}
+
+/* ============================================================
+   EXERCISE VARIANTS — the busy-gym fallback chain
+   ------------------------------------------------------------
+   Primary, then up to 3 alternatives. Past that the gym is
+   genuinely rammed and you're better off improvising.
+   ============================================================ */
+function variantIdx(ds,k){ return (DB.log[ds]&&DB.log[ds].variant&&DB.log[ds].variant[k])||0; }
+function bumpVariant(ds,k,max){
+  const e=DB.log[ds]||(DB.log[ds]={type:SCHEDULE[parse(ds).getDay()],sets:{}});
+  e.variant=e.variant||{};
+  const cur=e.variant[k]||0;
+  if(cur>=max) return;
+  e.variant[k]=cur+1;
+  if(e.sets&&e.sets[k]) delete e.sets[k];   // different movement, different loads
+  save(); render();
+}
+function resetVariant(ds,k){
+  const e=DB.log[ds]; if(!e||!e.variant) return;
+  delete e.variant[k];
+  if(e.sets&&e.sets[k]) delete e.sets[k];
+  save(); render();
+}
+window.bumpVariant=bumpVariant; window.resetVariant=resetVariant;
+function exVariant(x,i){ return i===0?{n:x.n,note:x.note}:(x.alts&&x.alts[i-1])||{n:x.n,note:x.note}; }
+
+/* ============================================================
+   SESSION FEEDBACK — difficulty + how you felt
+   ============================================================ */
+const MOUTHS=['M8.5 16.5c1.2-1.6 5.8-1.6 7 0','M8.5 16c1.2-0.9 5.8-0.9 7 0','M8.5 15.5h7','M8.5 14.6c1.2 0.9 5.8 0.9 7 0','M8.5 14c1.2 1.6 5.8 1.6 7 0'];
+function face(level,kind){
+  const i = kind==='mood' ? (5-level) : (level-1);
+  return `<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+    <circle cx="12" cy="12" r="9.2"/><circle cx="9" cy="10" r="1.05" fill="currentColor" stroke="none"/>
+    <circle cx="15" cy="10" r="1.05" fill="currentColor" stroke="none"/><path d="${MOUTHS[i]}"/></svg>`;
+}
+const DIFF_LABEL=['Easy','Comfortable','Solid','Hard','Brutal'];
+const MOOD_LABEL=['Rough','Flat','Fine','Good','Great'];
+function setFeel(ds,field,v){
+  const e=DB.log[ds]||(DB.log[ds]={type:SCHEDULE[parse(ds).getDay()],sets:{}});
+  e[field]= e[field]===v ? null : v;
+  save(); render();
+}
+window.setFeel=setFeel;
+function feelScale(ds,field,kind){
+  const e=DB.log[ds]||{}, cur=e[field]||0;
+  const labels = kind==='mood'?MOOD_LABEL:DIFF_LABEL;
+  return `<div class="feel">${[1,2,3,4,5].map(v=>`
+    <button class="fbtn${cur===v?' on':''}" onclick="setFeel('${ds}','${field}',${v})" aria-label="${labels[v-1]}">
+      ${face(v,kind)}<span>${labels[v-1]}</span>
+    </button>`).join('')}</div>`;
+}
+
+/* ============================================================
+   BONUS EXTRAS
+   ------------------------------------------------------------
+   Suggestions only. Doing one earns credit; skipping one is
+   never a miss and never touches your weekly score.
+   ============================================================ */
+const bonusOn=ds=>(DB.bonus&&DB.bonus[ds])||[];
+function toggleBonus(ds,k){
+  DB.bonus=DB.bonus||{};
+  const cur=new Set(bonusOn(ds));
+  if(cur.has(k)) cur.delete(k); else cur.add(k);
+  if(cur.size) DB.bonus[ds]=[...cur]; else delete DB.bonus[ds];
+  DB.visits=(DB.visits||[]).filter(v=>!(v.date===ds&&v.type==='bonus:'+k));
+  const OFFSITE=['run'];
+  if(cur.has(k)&&!OFFSITE.includes(k)) DB.visits.push({date:ds,type:'bonus:'+k});
+  save(); render();
+}
+window.toggleBonus=toggleBonus;
+function bonusCount(fromISO,toISO){
+  let n=0;
+  Object.keys(DB.bonus||{}).forEach(d=>{ if(d>=fromISO&&d<=toISO) n+=DB.bonus[d].length; });
+  return n;
+}
+const bonusThisWeek=()=>{const m=monOf(new Date());return bonusCount(iso(m),iso(addD(m,6)));};
+const bonusAllTime=()=>bonusCount('0000-01-01','9999-12-31');
 
 /* ============================================================
    ICONS / PILLS
@@ -321,7 +527,8 @@ const I={
   alert:'<svg viewBox="0 0 24 24"><path d="M12 8v5M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>',
   x:'<svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>',
   plane:'<svg viewBox="0 0 24 24"><path d="M17 3l4 4-7 5 1 8-2 1-3-7-5 2-1 3-2-1 1-5-5-3 1-2 8 1z"/></svg>',
-  dot:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/></svg>'
+  dot:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/></svg>',
+  star:'<svg viewBox="0 0 24 24"><path d="M12 3l2.7 5.8 6.3.8-4.6 4.3 1.2 6.1L12 17.8 6.4 20l1.2-6.1L3 9.6l6.3-.8z"/></svg>'
 };
 function pill(state){
   const M={
@@ -330,7 +537,8 @@ function pill(state){
     slipping: ['p-warn','alert','Slipping'],
     offtrack: ['p-bad','x','Off track'],
     away:     ['p-off','plane','Away'],
-    future:   ['p-off','dot','Upcoming']
+    future:   ['p-off','dot','Upcoming'],
+    bonus:    ['p-good','star','Bonus']
   }[state]||['p-off','dot','—'];
   return `<span class="pill ${M[0]}">${I[M[1]]}${M[2]}</span>`;
 }
@@ -344,12 +552,12 @@ const view=document.getElementById('view');
 function render(){
   const ws=weekStatus(weekKey(new Date()));
   document.getElementById('hdrPill').innerHTML=pill(ws.state);
-  const T={today:'Today',week:'This week',progress:'Progress',stake:'Stake',plan:'The plan',sync:'Sync'};
+  const T={today:'Today',week:'This week',progress:'Progress',club:'Membership',plan:'The plan',sync:'Sync'};
   document.getElementById('hdrTitle').textContent=T[TAB];
   document.getElementById('hdrSub').textContent=
     TAB==='today' ? new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})
     : `Week ${weekNum(new Date())} of 12`;
-  ({today:vToday,week:vWeek,progress:vProgress,stake:vStake,plan:vPlan,sync:vSync})[TAB]();
+  ({today:vToday,week:vWeek,progress:vProgress,club:vMembership,plan:vPlan,sync:vSync})[TAB]();
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===TAB));
 }
 
@@ -366,9 +574,9 @@ function vToday(){
   let h='';
 
   if(away){
-    h+=`<div class="banner b-info">${I.plane}<div><b>Flagged as away.</b> This day is excused — it will not count against your consistency or trigger the stake.</div></div>`;
+    h+=`<div class="banner b-info">${I.plane}<div><b>Flagged as away.</b> This day is excused — it will not count against your consistency.</div></div>`;
   } else if(ws.state==='slipping'){
-    h+=`<div class="banner b-warn">${I.alert}<div><b>You are two sessions down this week.</b> One more miss and the week goes off track and the stake triggers. Going away? Flag it on the Stake tab <em>before</em> the week ends.</div></div>`;
+    h+=`<div class="banner b-warn">${I.alert}<div><b>You are two sessions down this week.</b> One more miss and the week is off track. Going away? Flag it on the Membership tab <em>before</em> the week ends.</div></div>`;
   }
 
   h+=`<div class="card">
@@ -378,27 +586,19 @@ function vToday(){
     ${S.tip?`<div class="note">${S.tip}</div>`:''}
   </div>`;
 
-  if(type==='flex'){
-    h+=`<div class="card"><h3>What are you doing today?</h3>
-      <div class="btnrow mt">
-        <button class="btn" onclick="mark('bball')">Basketball</button>
-        <button class="btn" onclick="mark('gymA')">Day A</button>
-      </div>
-      <button class="btn ghost mt" onclick="mark('rest')">Resting today</button>
-      <div class="note">Pulling Day A to today means Wednesday becomes rest — that gives Thursday’s game 48h instead of 24h. It is the better version of the week.</div>
-    </div>`;
-  }
-
   if(isGym||(e.type==='gymA'||e.type==='gymB')){
     const key=e.type||type, prog=PROGRAMME[key];
     if(prog&&prog.ex.length){
       h+=`<h3 class="mt2" style="margin-bottom:8px">Log your sets</h3>`;
       prog.ex.forEach(x=>{
+        const nAlts=(x.alts||[]).length;
+        const vi=variantIdx(ds,x.k);
+        const V=exVariant(x,vi);
         const sets=(e.sets&&e.sets[x.k])||[];
-        const last=lastFor(x.k,ds);
+        const last=lastFor(x.k,ds,vi);
         h+=`<div class="ex${sets.length?' done':''}">
           <div class="top"><div>
-            <div class="nm">${x.n}</div>
+            <div class="nm">${V.n}${vi?` <span class="muted" style="font-weight:600">· sub ${vi}</span>`:''}</div>
             <div class="tgt">${x.t}${last?` · last: ${last.w}kg × ${last.r}`:''}</div>
           </div></div>
           ${[0,1,2].map(i=>`<div class="setrow">
@@ -406,23 +606,93 @@ function vToday(){
             <input inputmode="decimal" placeholder="kg" value="${sets[i]?.w??''}" onchange="setLog('${x.k}',${i},'w',this.value)">
             <input inputmode="numeric" placeholder="reps" value="${sets[i]?.r??''}" onchange="setLog('${x.k}',${i},'r',this.value)">
           </div>`).join('')}
-          <div class="note">${x.note}</div>
+          <div class="note">${V.note}</div>
+          ${nAlts?`<div class="swap">
+            ${vi<nAlts
+              ? `<button onclick="bumpVariant('${ds}','${x.k}',${nAlts})">Taken — swap it</button>
+                 <span class="step">${nAlts-vi} left</span>`
+              : `<span class="step" style="color:var(--warning);white-space:normal">All ${nAlts} alternatives gone — the gym is rammed. Do something equivalent and log it here.</span>`}
+            ${vi?`<button onclick="resetVariant('${ds}','${x.k}')">Back to ${x.n}</button>`:''}
+          </div>`:''}
         </div>`;
       });
+
+      // session feedback
+      h+=`<div class="card"><h3>How was that?</h3>
+        <div class="sec mt" style="margin-bottom:2px">Difficulty</div>
+        ${feelScale(ds,'rpe','diff')}
+        <div class="sec" style="margin-top:14px;margin-bottom:2px">How you felt</div>
+        ${feelScale(ds,'mood','mood')}
+        <div class="note">Two different things: how hard the session was, and how you felt doing it. Difficulty creeping up while mood drops is the pattern worth catching early.</div>
+      </div>`;
     }
   }
 
-  if(type!=='flex'&&type!=='rest'){
+  if(type==='bball'){
+    h+=`<div class="card"><h3>How was that?</h3>
+      <div class="sec mt" style="margin-bottom:2px">Difficulty</div>
+      ${feelScale(ds,'rpe','diff')}
+      <div class="sec" style="margin-top:14px;margin-bottom:2px">How you felt</div>
+      ${feelScale(ds,'mood','mood')}
+      <div class="note">Legs flat on a Thursday is the clearest sign the week is carrying too much fatigue.</div>
+    </div>`;
+  }
+
+  if(type!=='open'&&type!=='rest'){
     h+=`<button class="btn ${e.done?'':'primary'}" onclick="toggleDone()">${e.done?'Completed ✓ — tap to undo':'Mark complete'}</button>`;
   }
+
+  // ---- Optional extras: credit only, never a penalty ----
+  const done=bonusOn(ds);
+  const suggested=SUGGEST[d.getDay()]||[];
+  const others=Object.keys(BONUS).filter(k=>!suggested.includes(k));
+
+  if(done.length){
+    h+=`<div class="banner b-info" style="color:var(--good);border-color:var(--good)">${I.star}<div>
+      <b>Above and beyond.</b> ${done.map(k=>BONUS[k].label).join(' + ')} logged today — none of this was required. ${bonusThisWeek()} extra${bonusThisWeek()===1?'':'s'} this week.
+    </div></div>`;
+  }
+
+  h+=`<div class="card"><div class="row"><h3>Optional extras</h3>
+      <span class="muted">Bonus only — skipping costs nothing</span></div>`;
+  if(suggested.length){
+    h+=`<div class="sec mt" style="margin-bottom:8px">Suggested today</div>`;
+    suggested.forEach(k=>{
+      const on=done.includes(k);
+      h+=`<div class="ex${on?' done':''}" style="cursor:pointer" onclick="toggleBonus('${ds}','${k}')">
+        <div class="top"><div>
+          <div class="nm">${on?'★ ':''}${BONUS[k].label}</div>
+          <div class="tgt">${BONUS[k].sub}</div>
+        </div>${on?pill('bonus'):`<span class="pill p-off">${I.star}Add</span>`}</div>
+      </div>`;
+    });
+  }
+  h+=`<details style="margin-top:${suggested.length?'4px':'12px'}"><summary>Log something else</summary>
+    <div class="mt">${others.map(k=>{
+      const on=done.includes(k);
+      return `<div class="ex${on?' done':''}" style="cursor:pointer" onclick="toggleBonus('${ds}','${k}')">
+        <div class="top"><div><div class="nm">${on?'★ ':''}${BONUS[k].label}</div>
+        <div class="tgt">${BONUS[k].sub}</div></div>
+        ${on?pill('bonus'):`<span class="pill p-off">${I.star}Add</span>`}</div></div>`;}).join('')}</div>
+  </details>`;
+  h+=`</div>`;
+
 
   // weight
   const w=DB.weights[ds];
   h+=`<div class="card mt2"><h3>Morning weight</h3>
-    <div class="row mt"><input inputmode="decimal" placeholder="kg" value="${w??''}" onchange="logWeight(this.value)" style="flex:1">
+    <div class="row mt"><input inputmode="decimal" placeholder="lb" value="${w??''}" onchange="logWeight(this.value)" style="flex:1">
     <div class="muted" style="white-space:nowrap">${trendTxt()}</div></div>
     <div class="note">Same conditions each time — after the bathroom, before food. Single readings mean little; the 7-day average is the signal.</div>
   </div>`;
+
+  const bf=DB.bodyfat[ds], lastBf=lastBodyFat(ds);
+  h+=`<details><summary>Body Hub scan${bf?` · ${bf}%`:''}</summary>
+    <div class="mt"><label class="f">Body fat %</label>
+    <input inputmode="decimal" placeholder="%" value="${bf??''}" onchange="logBodyFat(this.value)"></div>
+    ${lastBf?`<div class="muted" style="margin-top:6px">Last scan: ${lastBf.v}% on ${fmtD(lastBf.d)}</div>`:''}
+    <div class="note">Monthly, not weekly — these readings bounce around day to day. This is the only measure that separates fat loss from muscle loss, which the scale cannot do.</div>
+  </details>`;
 
   // nutrition reference
   h+=`<details><summary>Daily nutrition targets</summary>
@@ -438,9 +708,15 @@ function vToday(){
   view.innerHTML=h;
 }
 
-function lastFor(k,before){
+function lastFor(k,before,variant){
   const ds=Object.keys(DB.log).filter(d=>d<before).sort().reverse();
-  for(const d of ds){const s=DB.log[d]?.sets?.[k];if(s&&s.length&&s[0].w)return s[0];}
+  for(const d of ds){
+    const rec=DB.log[d]; const st=rec?.sets?.[k];
+    if(!st||!st.length||!st[0].w) continue;
+    const v=(rec.variant&&rec.variant[k])||0;
+    if(variant!==undefined&&v!==variant) continue;   // only compare the same movement
+    return st[0];
+  }
   return null;
 }
 window.setLog=(k,i,f,v)=>{
@@ -460,6 +736,15 @@ window.mark=t=>{
   DB.log[ds]={...(DB.log[ds]||{}),type:t,done:t!=='rest',sets:DB.log[ds]?.sets||{}};
   save(); render();
 };
+function lastBodyFat(before){
+  const ds=Object.keys(DB.bodyfat||{}).filter(d=>d<before).sort().reverse();
+  return ds.length?{d:ds[0],v:DB.bodyfat[ds[0]]}:null;
+}
+window.logBodyFat=v=>{
+  const ds=todayISO(), n=parseFloat(v);
+  if(isNaN(n)) delete DB.bodyfat[ds]; else DB.bodyfat[ds]=n;
+  save(); render();
+};
 window.logWeight=v=>{
   const ds=todayISO(); const n=parseFloat(v);
   if(isNaN(n)) delete DB.weights[ds]; else DB.weights[ds]=n;
@@ -474,9 +759,9 @@ function avg7(end){
 function trendTxt(){
   const now=avg7(todayISO()), then=avg7(iso(addD(new Date(),-14)));
   if(now==null) return 'No data yet';
-  if(then==null) return `7-day avg ${now.toFixed(1)}kg`;
+  if(then==null) return `7-day avg ${now.toFixed(1)}lb`;
   const d=now-then;
-  return `7-day avg ${now.toFixed(1)}kg · ${d>0?'+':''}${d.toFixed(1)}kg /2wk`;
+  return `7-day avg ${now.toFixed(1)}lb · ${d>0?'+':''}${d.toFixed(1)}lb /2wk`;
 }
 
 /* ---------- WEEK ---------- */
@@ -487,10 +772,12 @@ function vWeek(){
     <div class="sec">${s.hit} of ${s.of} core sessions</div></div>${pill(s.state)}</div>
     <div class="week mt">${s.days.map(ds=>{
       const dd=parse(ds), ty=isAway(ds)?'rest':SCHEDULE[dd.getDay()], e=DB.log[ds]||{};
-      const m=isAway(ds)?'✈︎':e.done?'✓':ds<t?'·':ty==='rest'?'—':'○';
+      const bn=bonusOn(ds).length;
+      const m=isAway(ds)?'✈︎':e.done?'✓':bn?'★':ds<t?(ty==='open'||ty==='rest'?'—':'·'):ty==='rest'||ty==='open'?'—':'○';
       return `<div class="day${ds===t?' today':''}"><div class="d">${DOW[dd.getDay()][0]}</div><div class="m">${m}</div></div>`;
     }).join('')}</div>
-    <div class="legendless">✓ done · ○ upcoming · · missed · — rest · ✈︎ away</div>
+    <div class="legendless">✓ done · ★ bonus extra · ○ upcoming · · missed · — nothing required · ✈︎ away</div>
+    ${bonusThisWeek()?`<div class="banner b-info mt" style="color:var(--good);border-color:var(--good)">${I.star}<div><b>${bonusThisWeek()} extra${bonusThisWeek()===1?'':'s'} this week</b> on top of the plan. None of it was required.</div></div>`:''}
   </div>`;
 
   h+=`<h3 class="mt2" style="margin-bottom:8px">Schedule</h3>`;
@@ -504,7 +791,7 @@ function vWeek(){
       <div><div style="font-weight:600;font-size:14.5px">${DOW[dd.getDay()]} · ${P.label}</div>
       <div class="muted">${away?'Flagged away':P.sub}${core?' · counts toward your week':''}</div>
       ${swapped?`<div class="muted">Logged instead: ${swapped.label}</div>`:''}</div>
-      ${e.done?pill('ontrack'):away?pill('away'):(scored&&ds<t&&core)?pill('offtrack'):''}
+      ${e.done?pill('ontrack'):bonusOn(ds).length?pill('bonus'):away?pill('away'):(scored&&ds<t&&core)?pill('offtrack'):''}
     </div></div>`;
   });
 
@@ -528,16 +815,56 @@ function vProgress(){
 
   let h=`<div class="card">
     <h3>Weight — 7-day average</h3>
-    <div class="hero mt">${cur.toFixed(1)}<span class="u"> kg</span></div>
-    <div class="sec">${(start-cur).toFixed(1)}kg down · ${(cur-goal).toFixed(1)}kg to go</div>
+    <div class="hero mt">${cur.toFixed(1)}<span class="u"> lb</span></div>
+    <div class="sec">${(start-cur).toFixed(1)}lb down · ${(cur-goal).toFixed(1)}lb to go</div>
     <div style="background:var(--surface-2);border-radius:999px;height:7px;margin-top:12px;overflow:hidden">
       <div style="background:var(--series-1);height:100%;width:${pct}%;border-radius:999px"></div>
     </div>
-    <div class="muted" style="margin-top:6px">${pct.toFixed(0)}% of the way from ${start}kg to ${goal}kg</div>
+    <div class="muted" style="margin-top:6px">${pct.toFixed(0)}% of the way from ${start}lb to ${goal}lb</div>
   </div>`;
 
   h+=`<div class="card">${weightChart()}</div>`;
+  const bfd=Object.keys(DB.bodyfat||{}).sort();
+  if(bfd.length){
+    const first=DB.bodyfat[bfd[0]], latest=DB.bodyfat[bfd[bfd.length-1]], dlt=latest-first;
+    h+=`<div class="card"><h3>Body composition <span class="muted" style="font-weight:400">· Body Hub</span></h3>
+      <div class="hero mt">${latest.toFixed(1)}<span class="u"> % fat</span></div>
+      <div class="sec">${bfd.length>1?`${dlt>0?'+':''}${dlt.toFixed(1)} pts since ${fmtD(bfd[0])}`:`First scan, ${fmtD(bfd[0])}`}</div>
+      ${bfd.length>1?`<table class="mt"><thead><tr><th>Scan</th><th class="num">Body fat</th></tr></thead><tbody>
+        ${bfd.slice(-6).reverse().map(d=>`<tr><td>${fmtD(d)}</td><td class="num">${DB.bodyfat[d]}%</td></tr>`).join('')}
+      </tbody></table>`:''}
+      <div class="note">Falling body fat with stable or rising lifts is the result we want. Falling scale weight with <em>rising</em> body fat % would mean you are losing muscle — that is the one reading that would change the plan.</div>
+    </div>`;
+  }
   h+=`<div class="card">${consistencyChart()}</div>`;
+  // difficulty & mood
+  const feels=Object.keys(DB.log).filter(d=>DB.log[d].rpe||DB.log[d].mood).sort();
+  if(feels.length){
+    const avg=(arr,f)=>{const v=arr.map(d=>DB.log[d][f]).filter(Boolean);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;};
+    const recent=feels.slice(-6), older=feels.slice(-12,-6);
+    const rN=avg(recent,'rpe'), rO=avg(older,'rpe'), mN=avg(recent,'mood'), mO=avg(older,'mood');
+    const warn = rN!=null&&rO!=null&&mN!=null&&mO!=null && rN>rO+0.4 && mN<mO-0.4;
+    h+=`<div class="card"><h3>Difficulty &amp; how you felt</h3>
+      <div class="row mt" style="align-items:flex-end">
+        <div><div class="muted">Difficulty</div>
+          <div style="font-size:26px;font-weight:700">${rN==null?'—':rN.toFixed(1)}<span class="muted" style="font-size:14px;font-weight:600">/5</span></div>
+          <div class="muted">${rN==null?'':DIFF_LABEL[Math.round(rN)-1]}</div></div>
+        <div><div class="muted">Felt</div>
+          <div style="font-size:26px;font-weight:700">${mN==null?'—':mN.toFixed(1)}<span class="muted" style="font-size:14px;font-weight:600">/5</span></div>
+          <div class="muted">${mN==null?'':MOOD_LABEL[Math.round(mN)-1]}</div></div>
+        <div class="muted" style="text-align:right">last ${recent.length} sessions</div>
+      </div>
+      ${warn?`<div class="banner b-warn mt">${I.alert}<div><b>Sessions are getting harder while you are enjoying them less.</b> That is the classic overreaching pattern. First move is to drop BLAZE for a week — not a gym day, and never basketball.</div></div>`
+            :`<div class="note">Watching for difficulty rising while mood falls — that combination is the early warning, not either number on its own.</div>`}
+    </div>`;
+  }
+
+  const bw=bonusThisWeek(), ba=bonusAllTime();
+  h+=`<div class="card"><h3>Above and beyond</h3>
+    <div class="hero mt" style="color:var(--good)">${ba}</div>
+    <div class="sec">optional extra${ba===1?'':'s'} logged · ${bw} this week</div>
+    <div class="note">BLAZE, swims, spa, yoga and runs — none of these are required, and skipping them never counts against you. This is the credit column only.</div>
+  </div>`;
 
   // strength
   const keys=[['squat','Back Squat'],['rdl','RDL'],['chest','Chest Press'],['pull','Lat Pulldown'],
@@ -560,8 +887,8 @@ function vProgress(){
 
   h+=`<div class="card"><h3>Goal</h3>
     <div class="grid2 mt">
-      <div><label class="f">Start kg</label><input inputmode="decimal" value="${start}" onchange="setCfg('startWeight',this.value)"></div>
-      <div><label class="f">Goal kg</label><input inputmode="decimal" value="${goal}" onchange="setCfg('goalWeight',this.value)"></div>
+      <div><label class="f">Start lb</label><input inputmode="decimal" value="${start}" onchange="setCfg('startWeight',this.value)"></div>
+      <div><label class="f">Goal lb</label><input inputmode="decimal" value="${goal}" onchange="setCfg('goalWeight',this.value)"></div>
     </div></div>`;
 
   view.innerHTML=h; wireChart();
@@ -581,7 +908,7 @@ function weightChart(){
   const Y=v=>P.t+(1-(v-v0)/((v1-v0)||1))*(H-P.t-P.b);
   const line=pts.map((p,i)=>`${i?'L':'M'}${X(parse(p.d).getTime()).toFixed(1)} ${Y(p.v).toFixed(1)}`).join(' ');
   const ticks=[v0+(v1-v0)*0.15,(v0+v1)/2,v1-(v1-v0)*0.15];
-  return `<h3>Weight trend <span class="muted" style="font-weight:400">· kg, daily</span></h3>
+  return `<h3>Weight trend <span class="muted" style="font-weight:400">· lb, daily</span></h3>
   <svg class="chart" id="wc" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Body weight over time">
     ${ticks.map(t=>`<line x1="${P.l}" x2="${W-P.r}" y1="${Y(t).toFixed(1)}" y2="${Y(t).toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
       <text x="${P.l-7}" y="${(Y(t)+4).toFixed(1)}" fill="var(--muted)" font-size="11" text-anchor="end" font-family="system-ui">${t.toFixed(1)}</text>`).join('')}
@@ -623,7 +950,7 @@ function wireChart(){
     dots.forEach(c=>{const cr=c.getBoundingClientRect();
       const d=Math.abs((cr.left+cr.width/2)-p.clientX); if(d<bd){bd=d;best=c;}});
     if(!best||bd>60){tip.style.opacity=0;return;}
-    tip.innerHTML=`<b>${best.dataset.v} kg</b><br><span style="color:var(--muted)">${fmtD(best.dataset.d)}</span>`;
+    tip.innerHTML=`<b>${best.dataset.v} lb</b><br><span style="color:var(--muted)">${fmtD(best.dataset.d)}</span>`;
     tip.style.opacity=1;
     const br=best.getBoundingClientRect();
     tip.style.left=Math.min(window.innerWidth-110,Math.max(8,br.left-40))+'px';
@@ -634,66 +961,103 @@ function wireChart(){
 }
 
 /* ---------- STAKE ---------- */
-function vStake(){
-  const L=stakeLedger(), o=owed(), st=DB.stake;
+function vMembership(){
+  const m=DB.membership, S=membershipStats(), C=m.currency;
+  const money=n=>n>=100?`${C}${Math.round(n)}`:`${C}${n.toFixed(2)}`;
   let h='';
 
+  // Hero — the whole year's cost divided by visits so far. Falls every time you go.
   h+=`<div class="card">
-    <h3>Currently owed</h3>
-    <div class="hero mt" style="color:${o>0?'var(--critical)':'var(--good)'}">${st.currency}${o.toFixed(2)}</div>
-    <div class="sec">${o>0?`Owed to ${st.cause||'your chosen cause'}`:'Nothing outstanding. Keep it there.'}</div>
-    ${o>0?`<button class="btn mt" onclick="settle()">I have paid this</button>`:''}
+    <h3>Cost per visit</h3>
+    <div class="hero mt" style="color:${S.costPer==null?'var(--muted)':S.costPer>S.target*3?'var(--critical)':S.costPer>S.target?'var(--warning)':'var(--good)'}">
+      ${S.costPer==null?'—':money(S.costPer)}</div>
+    <div class="sec">${S.visits.length
+      ? `${money(S.basis)} ÷ ${S.visits.length} visit${S.visits.length===1?'':'s'}`
+      : `You have not logged a visit yet — it starts at ${money(S.basis)}`}</div>
+    ${S.visits.length?`<div class="note">Your next visit drops this to <b>${money(S.nextCostPer)}</b>. Every time you turn up, this number falls — that is the entire point of it.</div>`
+      :`<div class="note">The first visit costs you the whole membership. The second halves it. Keep going and it falls away fast.</div>`}
   </div>`;
 
-  h+=`<div class="card"><h3>How this works</h3>
-    <div class="sec mt">Four sessions a week count: <b>Monday basketball, Day A, Thursday basketball, Day B</b>.</div>
+  // Progress toward a sensible per-visit cost
+  h+=`<div class="card"><h3>Getting it down to ${money(S.target)}</h3>
+    <div style="background:var(--surface-2);border-radius:999px;height:8px;margin-top:12px;overflow:hidden">
+      <div style="background:var(--series-1);height:100%;width:${Math.min(100,(S.visits.length/S.visitsNeeded)*100)}%;border-radius:999px"></div>
+    </div>
+    <div class="row mt">
+      <div class="muted">${S.visits.length} of ${S.visitsNeeded} visits</div>
+      <div class="muted">${S.stillNeeded} to go</div>
+    </div>
+    <div class="note">${S.stillNeeded===0
+      ? `You are there — the membership is costing you under ${money(S.target)} a visit.`
+      : `About ${S.perWeekNeeded.toFixed(1)} visits a week across the year gets you to ${money(S.target)} per visit. Gym sessions, classes, swims, sauna and spa all count.`}</div>
+  </div>`;
+
+  h+=`<div class="card"><h3>This month</h3>
     <table class="mt"><tbody>
-      <tr><td>3 or 4 of 4</td><td class="num" style="color:var(--good)">No charge</td></tr>
-      <tr><td>2 or fewer</td><td class="num" style="color:var(--critical)">${st.currency}${st.amount}</td></tr>
-      <tr><td>Flagged away in advance</td><td class="num" style="color:var(--muted)">Excused</td></tr>
+      <tr><td>Visits this month</td><td class="num">${S.thisMonth}</td></tr>
+      <tr><td>Visits all time</td><td class="num">${S.visits.length}</td></tr>
+      <tr><td>At this rate, per year</td><td class="num">${S.projected}</td></tr>
+      <tr><td>Which would be</td><td class="num">${S.projCostPer==null?'—':money(S.projCostPer)} / visit</td></tr>
     </tbody></table>
-    <div class="note">Missing one session in a week is free — that is deliberate. The charge is for losing the <em>pattern</em>, not for one bad day. Consecutive off-track weeks escalate: 1× → 1.5× → 2×, because a second and third slipped week is the actual failure mode, not the first.</div>
   </div>`;
 
+  // Log a visit
+  h+=`<div class="card"><h3>Log a club visit</h3>
+    <div class="sec mt">Gym sessions and bonus extras count automatically. Add anything else here.</div>
+    <div class="grid3 mt">
+      <button class="btn" onclick="addVisit('class')">Class</button>
+      <button class="btn" onclick="addVisit('swim')">Swim</button>
+      <button class="btn" onclick="addVisit('spa')">Spa</button>
+    </div>
+    ${(DB.visits||[]).filter(v=>!String(v.type).startsWith('bonus:')).length?`<hr>${DB.visits.map((v,i)=>({v,i})).filter(o=>!String(o.v.type).startsWith('bonus:')).reverse().slice(0,8).map(o=>`<div class="ledger">
+      <div>${o.v.type[0].toUpperCase()+o.v.type.slice(1)}<div class="muted">${fmtD(o.v.date)}</div></div>
+      <button class="btn danger" style="width:auto;padding:5px 11px;font-size:13px" onclick="rmVisit(${o.i})">Remove</button>
+    </div>`).join('')}`:''}
+  </div>`;
+
+  // Away
   h+=`<div class="card"><h3>Going away? Flag it first.</h3>
     <div class="grid2 mt"><div><label class="f">From</label><input type="date" id="af"></div>
     <div><label class="f">To</label><input type="date" id="at"></div></div>
     <div class="mt"><label class="f">Reason</label><input id="ar" placeholder="Holiday, illness, work trip…"></div>
     <button class="btn mt" onclick="addAway()">Flag these days as away</button>
-    <div class="note">Flag it <b>before</b> the week ends, or it counts as a miss. That is the whole point — the app cannot tell the difference between a holiday and giving up unless you tell it in advance.</div>
+    <div class="note">Flagged days do not count against your weekly consistency.</div>
     ${DB.away.length?`<hr>${DB.away.map((a,i)=>`<div class="ledger"><div>${fmtD(a.from)} → ${fmtD(a.to)}<div class="muted">${a.reason||'No reason given'}</div></div>
       <button class="btn danger" style="width:auto;padding:5px 11px;font-size:13px" onclick="rmAway(${i})">Remove</button></div>`).join('')}`:''}
   </div>`;
 
-  h+=`<div class="card"><h3>Settings</h3>
+  // Settings
+  h+=`<div class="card"><h3>Membership</h3>
     <div class="grid2 mt">
-      <div><label class="f">Stake per week</label><input inputmode="decimal" value="${st.amount}" onchange="setStake('amount',this.value)"></div>
-      <div><label class="f">Currency</label><input value="${st.currency}" onchange="setStake('currency',this.value)"></div>
+      <div><label class="f">Full cost / year</label><input inputmode="decimal" value="${m.annualCost}" onchange="setMem('annualCost',this.value)"></div>
+      <div><label class="f">Your share</label><input inputmode="decimal" value="${m.myShare}" onchange="setMem('myShare',this.value)"></div>
     </div>
-    <div class="mt"><label class="f">Paid to</label><input value="${st.cause}" placeholder="Charity, mate, forfeit pot…" onchange="setStake('cause',this.value)"></div>
-    <label class="f mt" style="display:flex;gap:9px;align-items:center;text-transform:none;letter-spacing:0;font-size:14px;color:var(--ink)">
-      <input type="checkbox" style="width:auto" ${st.escalate?'checked':''} onchange="setStake('escalate',this.checked)"> Escalate consecutive off-track weeks
-    </label>
+    <div class="mt"><label class="f">Count against</label>
+      <select onchange="setMem('basis',this.value)">
+        <option value="share" ${m.basis!=='total'?'selected':''}>Your share (${C}${m.myShare})</option>
+        <option value="total" ${m.basis==='total'?'selected':''}>Full membership (${C}${m.annualCost})</option>
+      </select></div>
+    <div class="grid2 mt">
+      <div><label class="f">Started</label><input type="date" value="${m.start}" onchange="setMem('start',this.value)"></div>
+      <div><label class="f">Target / visit</label><input inputmode="decimal" value="${m.targetPerVisit||15}" onchange="setMem('targetPerVisit',this.value)"></div>
+    </div>
+    <div class="note">It is a two-person membership, so <b>your share</b> is the fairer basis — only your visits are tracked here. Switch to the full amount if you would rather see the bigger number.</div>
   </div>`;
 
-  if(L.length){
-    h+=`<div class="card"><h3>Ledger</h3>${L.slice().reverse().map(r=>`<div class="ledger">
-      <div><div style="font-weight:600">Week ${weekNum(parse(r.w))}</div><div class="muted">${r.note}</div></div>
-      <div style="text-align:right;white-space:nowrap"><div style="font-weight:700;color:${r.amt?'var(--critical)':'var(--good)'}">${r.amt?`${st.currency}${r.amt.toFixed(2)}`:'—'}</div></div>
-    </div>`).join('')}</div>`;
-  }
-
-  h+=`<div class="banner b-info mt2">${I.alert}<div><b>The app cannot take your money.</b> It does the accounting and holds you to it; moving the money is on you. If you want it enforced automatically, run the same rules on <b>Beeminder</b> or <b>StickK</b>, which have real payment systems.</div></div>`;
+  h+=`<div class="banner b-info">${I.alert}<div>A <b>utilisation read, not a punishment</b>. Money already spent does not motivate attendance — but watching the per-visit cost fall gives you an honest measure of whether this is worth renewing.</div></div>`;
 
   view.innerHTML=h;
 }
-window.setStake=(k,v)=>{DB.stake[k]=(k==='amount')?(parseFloat(v)||0):v;save();render();};
-window.settle=()=>{DB.stake.paid=stakeLedger().reduce((t,r)=>t+r.amt,0);save();render();};
-window.addAway=()=>{
-  const f=document.getElementById('af').value,t=document.getElementById('at').value,r=document.getElementById('ar').value;
-  if(!f||!t){alert('Pick both dates.');return;}
-  DB.away.push({from:f,to:t<f?f:t,reason:r});save();render();
+window.setMem=(k,v)=>{
+  DB.membership[k]=(k==='start'||k==='currency'||k==='basis')?v:(parseFloat(v)||0);
+  save(); render();
 };
+window.addVisit=t=>{
+  DB.visits=DB.visits||[];
+  DB.visits.push({date:todayISO(),type:t});
+  save(); render();
+};
+window.rmVisit=i=>{ DB.visits.splice(i,1); save(); render(); };
 window.rmAway=i=>{DB.away.splice(i,1);save();render();};
 window.importData=el=>{
   const f=el.files&&el.files[0]; if(!f) return;
@@ -703,8 +1067,10 @@ window.importData=el=>{
       const d=JSON.parse(r.result);
       if(!d||typeof d!=='object'||!('log' in d)) throw new Error('Not a Coach backup file');
       DB={log:d.log||{},weights:d.weights||{},away:d.away||[],
-          stake:Object.assign({enabled:true,amount:15,currency:'£',cause:'',paid:0,escalate:true},d.stake||{}),
-          settings:Object.assign({startWeight:79.4,goalWeight:72},d.settings||{})};
+          membership:Object.assign({annualCost:3746,myShare:1873,basis:'share',currency:'£',start:'2026-08-17',altMonthly:45,targetPerVisit:15},d.membership||{}),
+          visits:d.visits||[],
+          bonus:d.bonus||{},
+          settings:Object.assign({startWeight:175,goalWeight:159,unitMigrated:true},d.settings||{})};
       save(); render(); alert('Backup restored.');
     }catch(e){ alert('Could not read that file: '+e.message); }
     el.value='';
@@ -731,6 +1097,11 @@ function vPlan(){
       ${P.ex.map(x=>`<tr><td>${x.n}<div class="muted">${x.note}</div></td><td class="num">${x.t}</td></tr>`).join('')}
       </tbody></table><div class="note">${P.tip}</div></details>`;});
 
+  h+=`<details><summary>When a machine is busy</summary>
+    <div class="sec mt">Every exercise except basketball has up to <b>3 alternatives</b>. Tap <b>Taken — swap it</b> on the exercise and it moves to the next one down, in the order I would actually pick them.</div>
+    <div class="sec mt">If you burn through all three, the gym is genuinely rammed — do something equivalent of your own choosing and log it. That is not a failed session.</div>
+    <div class="sec mt">Swapping clears that exercise's logged sets, because a leg press number and a squat number are not comparable. Your strength trend only ever compares like with like.</div>
+  </details>`;
   h+=`<details><summary>Progression rules</summary>
     <div class="sec mt"><b>Weeks 1–4 · Foundation.</b> Add the smallest available increment when form holds. Technique over load.</div>
     <div class="sec mt"><b>Weeks 5–8 · Overload.</b> Double progression — work up the rep range, then add weight.</div>
@@ -744,6 +1115,17 @@ function vPlan(){
     <div class="sec mt">At around 27% body fat, losing fat <em>is</em> a performance move: less mass to accelerate, decelerate and jump with. The deficit is moderate on purpose — a steeper one costs you energy, gym performance and on-court sharpness, which defeats the point.</div>
   </details>`;
 
+  h+=`<details><summary>Using the club properly</summary>
+    <div class="sec mt"><b>BLAZE on Tuesday, once a week.</b> You enjoy it, and enjoyment keeps you turning up — that counts for more than the theoretical objection that it overlaps with basketball conditioning. Tuesday works because it is 24h after Monday’s game and 48h before Wednesday. Keep it to one a week: it is a genuinely hard session, and a second would start eating Thursday’s game.</div>
+    <div class="sec mt"><b>If Thursday starts feeling flat, BLAZE is the first thing to drop</b> — not a gym day, and never basketball.</div>
+    <div class="sec mt"><b>Yoga is the other one worth doing.</b> Hips and ankles feed straight into squat depth and landing mechanics, at almost no recovery cost.</div>
+    <div class="sec mt"><b>No cycling</b> — off the table for your knee. It is cycling-specific, so nothing else here needs adjusting.</div>
+    <div class="sec mt"><b>Other strength classes will not replace Day A or B.</b> Light loads, high reps — fine if you enjoy them, but they will not progress your squat.</div>
+    <div class="sec mt"><b>Cold plunge: not within about 4 hours of lifting.</b> This is the one facility with a real downside — cold-water immersion straight after resistance training measurably blunts the strength and muscle adaptations you just trained for. Use it after basketball, on rest days, or well separated from Day A and Day B. Saunas do not have this problem.</div>
+    <div class="sec mt"><b>Saunas, hot tub, pools, massage gun</b> — all fine any time, all count as club visits, and they are a large part of what the membership premium actually buys.</div>
+    <div class="sec mt"><b>Tennis, badminton, pickleball</b> are good bonus movement, but they are high-intensity and on your feet like basketball. Keep them away from Monday and Thursday if your legs are already loaded.</div>
+    <div class="sec mt"><b>Body Hub: use it monthly, not weekly.</b> Body-composition readings bounce around day to day. Monthly matches how we assess everything else — trends, not single numbers.</div>
+  </details>`;
   h+=`<div class="banner b-info mt2">${I.alert}<div><b>Logging is manual.</b> A home-screen web app cannot read Apple Health — only a native App Store app can. Manual ticking takes seconds, and typing your top sets is what drives the progression targets anyway.</div></div>`;
   view.innerHTML=h;
 }
@@ -759,14 +1141,7 @@ const FBV='https://www.gstatic.com/firebasejs/10.12.5';
 /* ▼▼▼ PASTE YOUR firebaseConfig BETWEEN THE BRACES BELOW, THEN DEPLOY ▼▼▼
    Leave it as null to run the app locally with no account or sync.
    These values are public by design — access is controlled by firestore.rules. */
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyBtNFAI1xZdOBZ0u20fiQVyBDlxF4LaVJQ",
-  authDomain: "health-tracker-441b7.firebaseapp.com",
-  projectId: "health-tracker-441b7",
-  storageBucket: "health-tracker-441b7.firebasestorage.app",
-  messagingSenderId: "105184647664",
-  appId: "1:105184647664:web:56621d17bf6c06b6e26535"
-};
+const FIREBASE_CONFIG = null;
 /* ▲▲▲ e.g.  const FIREBASE_CONFIG = { apiKey:"AIza…", authDomain:"coach.firebaseapp.com",
              projectId:"coach", appId:"1:123:web:abc" };                        ▲▲▲ */
 
@@ -778,11 +1153,17 @@ function mergeDB(a,b){
   return {
     log:      mergeMap(newer.log,older.log),
     weights:  mergeMap(newer.weights,older.weights),
+    bodyfat:  mergeMap(newer.bodyfat,older.bodyfat),
     away:     (()=>{const seen=new Set(),out=[];
                  [...(newer.away||[]),...(older.away||[])].forEach(v=>{
                    const k=`${v.from}|${v.to}`; if(!seen.has(k)){seen.add(k);out.push(v);}});
                  return out;})(),
-    stake:    Object.assign({},older.stake||{},newer.stake||{}),
+    membership: Object.assign({},older.membership||{},newer.membership||{}),
+    bonus:    mergeMap(newer.bonus,older.bonus),
+    visits:   (()=>{const seen=new Set(),out=[];
+                 [...(newer.visits||[]),...(older.visits||[])].forEach(v=>{
+                   const k=`${v.date}|${v.type}`; if(!seen.has(k)){seen.add(k);out.push(v);}});
+                 return out;})(),
     settings: Object.assign({},older.settings||{},newer.settings||{}),
     updatedAt: Math.max(a.updatedAt||0,b.updatedAt||0)
   };
