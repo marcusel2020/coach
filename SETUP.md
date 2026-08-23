@@ -49,8 +49,9 @@ You're now on your project's dashboard.
 
 ## 1.2 — Turn on Google sign-in
 
-1. On the left sidebar, click **Build** to expand it.
+1. On the left sidebar, click **Security** (under *Product categories*).
 2. Click **Authentication**.
+   *Older guides say "Build → Authentication". Firebase removed the Build menu — it's under Security now.*
 3. Click the **Get started** button.
 4. You'll see a list of sign-in providers. Click **Google**.
 5. Click the **Enable** toggle (top right of that panel) so it turns blue.
@@ -61,7 +62,7 @@ Google should now show as **Enabled**.
 
 ## 1.3 — Create the database
 
-1. Left sidebar → **Build** → **Firestore Database**.
+1. Left sidebar → **Databases & Storage** → **Firestore Database**.
 2. Click **Create database**.
 3. It asks for a **location**. Choose **`europe-west2 (London)`**.
    ⚠️ **This cannot be changed later.** Pick London.
@@ -99,8 +100,9 @@ service cloud.firestore {
 
 ## 1.5 — Get your app's config
 
-1. At the top of the left sidebar, click the **⚙️ gear icon** next to *Project Overview* → **Project settings**.
+1. Click the **⚙️ gear icon** in the left sidebar → **General**.
 2. Scroll down to the section called **Your apps**.
+   *Your **Project ID** is also on this page, near the top — you need it in Part 4.*
 3. Click the **`</>`** icon (it's the web option, next to the Apple and Android icons).
 4. **App nickname:** type `coach`
 5. **Do NOT tick** "Also set up Firebase Hosting for this app."
@@ -129,18 +131,17 @@ const firebaseConfig = {
 
 This is the key that lets GitHub send updates to Firebase on your behalf.
 
-1. Still in **Project settings** (⚙️ gear → Project settings).
-2. Click the **Service accounts** tab at the top.
-3. Click the button **Generate new private key**.
-4. A warning box appears — click **Generate key**.
-5. A **`.json` file downloads** to your Downloads folder. It'll have a long name like `coach-4821-firebase-adminsdk-xxxxx.json`.
+1. Click the **⚙️ gear icon** in the left sidebar → **Service accounts**.
+2. Click the button **Generate new private key**.
+3. A warning box appears — click **Generate key**.
+4. A **`.json` file downloads** to your Downloads folder. It'll have a long name like `coach-4821-firebase-adminsdk-xxxxx.json`.
 
 **Now open that file so you can copy what's inside:**
 
-6. Go to your **Downloads** folder and find that `.json` file.
-7. **Right-click it** → **Open With** → **TextEdit**.
-8. Press **Cmd + A** (select all), then **Cmd + C** (copy).
-9. Leave it copied — you'll paste it in Part 3.
+5. Go to your **Downloads** folder and find that `.json` file.
+6. **Right-click it** → **Open With** → **TextEdit**.
+7. Press **Cmd + A** (select all), then **Cmd + C** (copy).
+8. Leave it copied — you'll paste it in Part 3.
 
 > ⚠️ **Treat this key like a password.** Don't email it or post it anywhere. You'll paste it into GitHub's secrets box, which is built to store exactly this. Delete the downloaded file afterwards.
 
@@ -199,42 +200,30 @@ You should now see `FIREBASE_SERVICE_ACCOUNT` listed. You can't view it again �
 
 You should now see your 5 files listed.
 
-## 4.2 — Paste your Firebase config into the app
+## 4.2 — Create config.js with your Firebase keys
 
-1. Click on **`index.html`** in the file list.
-2. Click the **pencil icon** (✏️) near the top right to edit it.
-3. Press **Cmd + F** to search within the file. Type: `FIREBASE_CONFIG`
-   *You may need to click "Use GitHub's file editor search" — or just scroll to around line 762.*
-4. Find this line:
+Your keys live in their **own file**, separate from the app. That way future app
+updates overwrite `index.html` only, and your sign-in keeps working.
+
+1. On your repo's main page, click **Add file** → **Create new file**.
+2. Filename: `config.js`
+3. Paste this in, replacing each value with the ones from your own `firebaseConfig`:
 
 ```js
-const FIREBASE_CONFIG = null;
-```
-
-5. **Select just the word `null`** and delete it.
-6. Now paste your config from Notes — but **remove the `const firebaseConfig = ` part** from the front.
-
-**Before:**
-```js
-const FIREBASE_CONFIG = null;
-```
-
-**After:**
-```js
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyD-EXAMPLE-KEY-1234567890",
-  authDomain: "coach-4821.firebaseapp.com",
-  projectId: "coach-4821",
-  storageBucket: "coach-4821.appspot.com",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:abc123def456"
+window.FIREBASE_CONFIG = {
+  apiKey: "PASTE_YOUR_API_KEY",
+  authDomain: "PASTE_YOUR_PROJECT.firebaseapp.com",
+  projectId: "PASTE_YOUR_PROJECT_ID",
+  storageBucket: "PASTE_YOUR_PROJECT.appspot.com",
+  messagingSenderId: "PASTE_YOUR_SENDER_ID",
+  appId: "PASTE_YOUR_APP_ID"
 };
 ```
 
-> ✅ **Check:** the line must start with `const FIREBASE_CONFIG = {` and the last line must be `};`
-> There should be **one** `=` sign, and no leftover `const firebaseConfig`.
+4. **Commit changes**.
 
-7. Click **Commit changes...** (green button, top right), then **Commit changes** in the box that appears.
+> ⚠️ **Never put your keys in `index.html`.** Updating the app replaces that file
+> and would wipe them, dropping the app back to local-only with no sign-in.
 
 ## 4.3 — Create the deploy instructions
 
@@ -284,13 +273,15 @@ jobs:
 2. You'll see a job running with a **yellow dot** 🟡. Wait about a minute.
 3. It should turn into a **green tick** ✅.
 
-**If you got a green tick**, your app is live at:
+**If you got a green tick**, your app is live. Use the **`.firebaseapp.com`** address:
 
 ```
-https://YOUR-PROJECT-ID.web.app
+https://YOUR-PROJECT-ID.firebaseapp.com
 ```
 
-*(e.g. `https://coach-4821.web.app` — use your own project ID)*
+⚠️ **Use `.firebaseapp.com`, not `.web.app`.** Firebase serves the identical site at both, but only
+`.firebaseapp.com` is pre-authorised for Google sign-in. The `.web.app` address gives
+`Error 400: redirect_uri_mismatch` until you manually authorise it in Google Cloud Console.
 
 4. Open that address in your Mac's browser. The app should load.
 5. Click the **Sync** tab at the bottom, then **Sign in with Google**.
@@ -306,7 +297,7 @@ https://YOUR-PROJECT-ID.web.app
 
 1. On your iPhone, open **Safari**.
    ⚠️ It must be Safari. Chrome on iPhone can't install home-screen apps.
-2. Go to your address: `https://YOUR-PROJECT-ID.web.app`
+2. Go to your address: `https://YOUR-PROJECT-ID.firebaseapp.com`
 3. Tap the **Share** button at the bottom (a square with an arrow pointing up).
 4. Scroll down the list and tap **Add to Home Screen**.
 5. Tap **Add** (top right).
@@ -351,9 +342,15 @@ Miss weeks back-to-back and the charge escalates: 1× → 1.5× → 2×.
 
 ---
 
-# Making changes later
+# Updating the app later
 
-To update anything, edit the file on GitHub — click the file, click the ✏️ pencil, make the change, **Commit changes**. It goes live in about a minute automatically. You'll never need to repeat the setup.
+Upload the new `index.html` (Add file → Upload files → drag → Commit). It goes live
+in about a minute.
+
+**Never overwrite `config.js`** — that holds your keys and stays put forever.
+
+Check it worked: **Sync tab → App version**. If it does not match what you deployed,
+tap **Force refresh**.
 
 ---
 
@@ -368,6 +365,9 @@ To update anything, edit the file on GitHub — click the file, click the ✏️
 | **Sign-in does nothing on the iPhone** | You're in a Safari tab rather than the home-screen app, or on the wrong address. Use the icon and your `.web.app` address. |
 | **"Missing or insufficient permissions"** | The rules in step 1.4 weren't published. Redo it and click **Publish**. |
 | **Page is blank after an update** | Force-quit the app (swipe up) and reopen. Your data is in the cloud, so nothing is lost. |
+| **`Error 400: redirect_uri_mismatch`** on sign-in | You're on the `.web.app` address. Switch to `.firebaseapp.com` — same site, and it's pre-authorised. |
+| **`error in your yaml syntax on line 2`** | The word `yaml` ended up on line 1 of `deploy.yml`. The file must begin with `name: Deploy`. |
+| **`npx failed with exit code 2`** | Usually `projectId` in `deploy.yml` doesn't match your real project ID. Check it against Settings → General. |
 | **Something else** | Copy the error message and send it to me — I'll tell you what it means. |
 
 ### Undoing a bad change
