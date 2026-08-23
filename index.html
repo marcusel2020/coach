@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Coach">
+<meta name="theme-color" content="#0d0d0d">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230d0d0d'/%3E%3Ctext x='90' y='122' font-size='96' font-family='system-ui' font-weight='700' fill='%233987e5' text-anchor='middle'%3EC%3C/text%3E%3C/svg%3E">
+<title>Coach</title>
+<style>
+:root{
+  color-scheme: dark;
+  --plane:#0d0d0d; --surface:#16161a; --surface-2:#1f1f24; --raised:#26262c;
+  --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+  --series-1:#3987e5;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --safe-t: env(safe-area-inset-top); --safe-b: env(safe-area-inset-bottom);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--plane); color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:16px; line-height:1.45;
+  padding-top:var(--safe-t); padding-bottom:calc(64px + var(--safe-b));
+  overscroll-behavior-y:none;
+}
+h1,h2,h3{margin:0;font-weight:650;letter-spacing:-0.01em}
+h1{font-size:22px}
+h2{font-size:17px}
+h3{font-size:14px;color:var(--ink-2);font-weight:600}
+.wrap{padding:16px 16px 24px;max-width:640px;margin:0 auto}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
+.card.tight{padding:12px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.muted{color:var(--muted);font-size:13px}
+.sec{color:var(--ink-2);font-size:14px}
+.mt{margin-top:12px}.mt2{margin-top:20px}
+hr{border:0;border-top:1px solid var(--border);margin:14px 0}
+
+/* header */
+header{position:sticky;top:0;z-index:20;background:rgba(13,13,13,0.86);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);padding:calc(var(--safe-t) + 10px) 16px 10px;margin-top:calc(-1 * var(--safe-t))}
+header .row{max-width:640px;margin:0 auto}
+
+/* tab bar */
+nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;
+  background:rgba(13,13,13,0.92);backdrop-filter:blur(12px);
+  border-top:1px solid var(--border);padding-bottom:var(--safe-b)}
+nav button{flex:1;background:none;border:0;color:var(--muted);font:inherit;font-size:10.5px;
+  padding:9px 2px 7px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+nav button svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav button[aria-selected="true"]{color:var(--series-1)}
+
+/* status pill: icon + label, never colour alone */
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;
+  padding:3px 9px 3px 7px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.pill svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.p-good{color:var(--good)}.p-warn{color:var(--warning)}.p-bad{color:var(--critical)}.p-off{color:var(--muted)}
+
+button.btn{font:inherit;font-weight:600;font-size:15px;border-radius:11px;border:1px solid var(--border);
+  background:var(--raised);color:var(--ink);padding:11px 14px;cursor:pointer;width:100%}
+button.btn.primary{background:var(--series-1);border-color:var(--series-1);color:#fff}
+button.btn.ghost{background:transparent}
+button.btn.danger{color:var(--critical);border-color:var(--critical);background:transparent}
+button.btn:active{opacity:.7}
+.btnrow{display:flex;gap:8px}
+
+input,select{font:inherit;font-size:16px;background:var(--surface-2);border:1px solid var(--border);
+  color:var(--ink);border-radius:9px;padding:9px 10px;width:100%}
+label.f{display:block;font-size:12px;color:var(--muted);margin:0 0 4px 2px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.04em}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+
+/* hero */
+.hero{font-size:44px;font-weight:700;letter-spacing:-0.03em;line-height:1.05}
+.hero .u{font-size:17px;color:var(--muted);font-weight:600;letter-spacing:0}
+
+/* exercise log */
+.ex{border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px;background:var(--surface-2)}
+.ex .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.ex .nm{font-weight:600;font-size:15px;line-height:1.3}
+.ex .tgt{font-size:12.5px;color:var(--muted);margin-top:2px}
+.setrow{display:grid;grid-template-columns:22px 1fr 1fr;gap:7px;align-items:center;margin-top:8px}
+.setrow .n{font-size:12px;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
+.note{font-size:12.5px;color:var(--ink-2);margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+.done{border-color:var(--good)}
+
+/* week strip */
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.day{background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:7px 2px;text-align:center;cursor:pointer}
+.day .d{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.03em}
+.day .m{font-size:15px;margin-top:3px;line-height:1}
+.day.today{border-color:var(--series-1);box-shadow:0 0 0 1px var(--series-1)}
+
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--border)}
+th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:700}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+
+.ledger{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:14px;gap:10px}
+.ledger:last-child{border-bottom:0}
+
+svg.chart{width:100%;display:block;overflow:visible;touch-action:none}
+.tip{position:fixed;z-index:50;background:var(--raised);border:1px solid var(--border);border-radius:9px;
+  padding:7px 10px;font-size:12.5px;pointer-events:none;opacity:0;transition:opacity .1s;box-shadow:0 6px 20px rgba(0,0,0,.5)}
+.legendless{font-size:12px;color:var(--muted);margin-top:6px}
+
+details{border:1px solid var(--border);border-radius:11px;padding:12px;background:var(--surface);margin-bottom:10px}
+summary{cursor:pointer;font-weight:600;font-size:15px;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"›";float:right;color:var(--muted);font-size:19px;line-height:1}
+details[open] summary::after{content:"⌄"}
+.hide{display:none !important}
+.banner{border-radius:11px;padding:11px 13px;font-size:13.5px;border:1px solid;margin-bottom:12px;display:flex;gap:9px;align-items:flex-start}
+.banner svg{width:16px;height:16px;flex:none;margin-top:1px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.b-warn{color:var(--warning);border-color:var(--warning)}
+.b-bad{color:var(--critical);border-color:var(--critical)}
+.b-info{color:var(--ink-2);border-color:var(--border)}
+.banner b{color:inherit}
+.banner div{min-width:0;overflow-wrap:anywhere}
+td.num{overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="row">
+    <div>
+      <h1 id="hdrTitle">Today</h1>
+      <div class="muted" id="hdrSub">—</div>
+    </div>
+    <div id="hdrPill"></div>
+  </div>
+</header>
+
+<main class="wrap" id="view"></main>
+
+<nav id="tabs">
+  <button data-tab="today" aria-selected="true"><svg viewBox="0 0 24 24"><path d="M12 3v18M5 8v8M19 8v8"/><rect x="2" y="10" width="3" height="4" rx="1"/><rect x="19" y="10" width="3" height="4" rx="1"/></svg>Today</button>
+  <button data-tab="week"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Week</button>
+  <button data-tab="progress"><svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 4 8-9"/><path d="M21 6v5h-5"/></svg>Progress</button>
+  <button data-tab="stake"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.8 1.8 0 010 3.6h-3a1.8 1.8 0 000 3.6h4"/></svg>Stake</button>
+  <button data-tab="plan"><svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10"/></svg>Plan</button>
+  <button data-tab="sync"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 01-13.7 5.7M4 12a8 8 0 0113.7-5.7"/><path d="M17 3v4h-4M7 21v-4h4"/></svg><span style="position:relative">Sync<i id="syncDot" style="position:absolute;top:-1px;right:-8px;width:5px;height:5px;border-radius:50%;background:var(--muted)"></i></span></button>
+</nav>
+
+<div class="tip" id="tip"></div>
+
+<script>
+/* ============================================================
+   STORAGE — localStorage with in-memory fallback
+   ============================================================ */
+const Store=(()=>{
+  let mem={}, ok=true;
+  try{const k='__t';localStorage.setItem(k,'1');localStorage.removeItem(k);}catch(e){ok=false;}
+  return{
+    ok,
+    get(k,d){ try{ const v = ok?localStorage.getItem(k):mem[k]; return v==null?d:JSON.parse(v);}catch(e){return d;} },
+    set(k,v){ try{ const s=JSON.stringify(v); if(ok)localStorage.setItem(k,s); else mem[k]=s; }catch(e){ mem[k]=JSON.stringify(v); } }
+  };
+})();
+
+/* ============================================================
+   PROGRAMME DEFINITION
+   ============================================================ */
+const START='2026-08-17';           // Monday of week 1
+const PROGRAMME={
+  gymA:{
+    id:'gymA', label:'Gym — Day A', sub:'Lower-body led · main strength session',
+    ex:[
+      {n:'Back Squat',           t:'3 × 5',      k:'squat',  note:'RPE 8. Goblet squat first 2–3 weeks if technique needs work. Power rack.'},
+      {n:'DB Romanian Deadlift', t:'3 × 6',      k:'rdl',    note:'RPE 7 — controlled, not to failure. Barbell RDL once form is solid.'},
+      {n:'Chest Press',          t:'3 × 8',      k:'chest',  note:'Technogym Selection. DB bench press as alternative.'},
+      {n:'Lat Pulldown',         t:'3 × 8',      k:'pull',   note:'Technogym Selection, or cable trainer high pulley.'},
+      {n:'Pallof Press',         t:'2 × 10/side',k:'pallof', note:'Cable trainer, pulley at chest height. Anti-rotation core.'}
+    ],
+    tip:'On Wednesday (24h before Thursday) keep the squat at RPE 7–8 — don’t chase a PR. If you pulled this forward to Tuesday you have 48h before Thursday: that’s the week to push the top set.'
+  },
+  gymB:{
+    id:'gymB', label:'Gym — Day B', sub:'Upper-body led · legs kept fresh',
+    ex:[
+      {n:'Shoulder Press',        t:'3 × 6–8',  k:'ohp',    note:'Technogym Selection, or DB overhead press.'},
+      {n:'Seated Row',            t:'3 × 8–10', k:'row',    note:'Technogym Selection, or cable trainer low pulley.'},
+      {n:'Chest Press / Assisted Dip', t:'3 × 8–10', k:'push2', note:'Second push movement — alternate across the block.'},
+      {n:'Standing DB Calf Raise',t:'3 × 12–15',k:'calf',   note:'Low systemic fatigue, direct ankle resilience.'},
+      {n:'Farmer’s Carry',   t:'2 × 20–30m',k:'carry',  note:'DBs or kettlebells. Grip + trunk, minimal leg cost.'}
+    ],
+    tip:'No squats, split squats or heavy hinging here by design — Monday’s 2h game is 24h away and it is the priority.'
+  },
+  bball:{ id:'bball', label:'Basketball', sub:'2 hours · the priority', ex:[], tip:'This is what the whole programme serves. Turn up fresh.' },
+  run:{   id:'run',   label:'Run — 5km',  sub:'Easy pace · tracked on Strava', ex:[],
+          tip:'Conversational pace. This is aerobic base, not a race — pushing it leaves you flat for Sunday and Monday.'},
+  flex:{  id:'flex',  label:'Flex day',   sub:'Ad-hoc basketball, or pull Day A forward', ex:[],
+          tip:'If you already know you are not playing, do Day A today and rest Wednesday — that gives Thursday 48h. Do not do both Tuesday and Wednesday as separate gym sessions.'},
+  rest:{  id:'rest',  label:'Rest / Reset', sub:'Recovery is part of the plan', ex:[],
+          tip:'Deliberate. Walk if you like, but nothing that costs recovery.'}
+};
+// 0=Sun … 6=Sat
+const SCHEDULE={1:'bball',2:'flex',3:'gymA',4:'bball',5:'rest',6:'run',0:'gymB'};
+// The four commitments a week is scored on
+const CORE=[{dow:1,type:'bball'},{dow:3,type:'gymA'},{dow:4,type:'bball'},{dow:0,type:'gymB'}];
+
+const NUTRITION={kcal:2200,protein:175,fat:70,carbs:215};
+
+/* ============================================================
+   DATE HELPERS  (local-time safe)
+   ============================================================ */
+const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const parse=s=>{const[a,b,c]=s.split('-').map(Number);return new Date(a,b-1,c);};
+const addD=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x;};
+const todayISO=()=>iso(new Date());
+// Monday-start week
+const monOf=d=>{const x=new Date(d);const g=(x.getDay()+6)%7;x.setDate(x.getDate()-g);x.setHours(0,0,0,0);return x;};
+const weekKey=d=>iso(monOf(d));
+const fmtD=s=>parse(s).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function weekNum(d){
+  const diff=Math.round((monOf(d)-monOf(parse(START)))/604800000);
+  return Math.max(1,diff+1);
+}
+
+/* ============================================================
+   DATA
+   ============================================================ */
+let DB=Store.get('coach.db',null)||{
+  log:{},          // 'YYYY-MM-DD': {type, done:true, sets:{key:[{w,r}]}, rpe}
+  weights:{},      // 'YYYY-MM-DD': kg
+  away:[],         // [{from,to,reason}]
+  stake:{ enabled:true, amount:15, currency:'£', cause:'', paid:0, escalate:true },
+  settings:{ startWeight:79.4, goalWeight:72 },
+  updatedAt:0
+};
+const save=()=>{ DB.updatedAt=Date.now(); Store.set('coach.db',DB); if(window.Cloud) Cloud.queue(); };
+
+const isAway=s=>DB.away.some(a=>s>=a.from&&s<=a.to);
+function weekAway(mondayISO){
+  const m=parse(mondayISO);
+  for(let i=0;i<7;i++) if(!isAway(iso(addD(m,i)))) return false;
+  return true;
+}
+function weekPartlyAway(mondayISO){
+  const m=parse(mondayISO);
+  for(let i=0;i<7;i++) if(isAway(iso(addD(m,i)))) return true;
+  return false;
+}
+
+/* ============================================================
+   SCORING  — the accountability engine
+   ------------------------------------------------------------
+   Four core commitments a week (Mon bball, Day A, Thu bball, Day B).
+   3 of 4  → on track. One miss is free, by design.
+   ≤2 of 4 → off track, and the stake triggers.
+   A week flagged as away in advance is excused entirely.
+   Consecutive off-track weeks escalate ×1 → ×1.5 → ×2 (capped).
+   ============================================================ */
+function weekStatus(mondayISO){
+  const m=parse(mondayISO), today=todayISO();
+  const days=[...Array(7)].map((_,i)=>iso(addD(m,i)));
+  const started=days[0]<=today;
+  const beforeProgramme=days[6]<START;             // week ends before the programme begins
+  if(!started||beforeProgramme) return{state:'future',hit:0,of:4,days};
+  if(weekAway(mondayISO)) return{state:'away',hit:0,of:4,days,complete:days[6]<today,partial:true};
+
+  let hit=0, due=0;
+  CORE.forEach(c=>{
+    const off=(c.dow+6)%7;           // convert Sun-start dow to Mon-start index
+    const ds=days[off];
+    if(isAway(ds)) return;           // excused day doesn't count against you
+    if(ds<=today) due++;
+    const e=DB.log[ds];
+    // Day A counts if done Tue OR Wed (the flex rule)
+    if(c.type==='gymA'){
+      const tue=DB.log[days[1]], wed=DB.log[days[2]];
+      if((tue&&tue.done&&tue.type==='gymA')||(wed&&wed.done&&wed.type==='gymA')) hit++;
+    } else if(e&&e.done) hit++;
+  });
+
+  const of=Math.max(1,CORE.filter(c=>!isAway(days[(c.dow+6)%7])).length);
+  const complete=days[6]<today;
+  let state;
+  if(!complete) state = hit>=3?'ontrack' : (due-hit)>=2 ? 'slipping' : 'inprogress';
+  else state = hit>=of-1 ? 'ontrack' : 'offtrack';
+  return{state,hit,of,due,days,complete,partial:weekPartlyAway(mondayISO)};
+}
+
+function allWeeks(){
+  const first=monOf(parse(START)), now=monOf(new Date()), out=[];
+  const from = now<first ? now : first;          // handles being a day or two before start
+  for(let d=new Date(from); d<=now; d=addD(d,7)) out.push(iso(d));
+  if(!out.length) out.push(iso(now));
+  return out;
+}
+
+function stakeLedger(){
+  const rows=[]; let streak=0;
+  allWeeks().forEach(w=>{
+    const s=weekStatus(w);
+    if(!s.complete) return;
+    if(s.state==='away'){ rows.push({w,state:'away',amt:0,note:'Flagged in advance — excused'}); streak=0; return; }
+    if(s.state==='ontrack'){ rows.push({w,state:'ontrack',amt:0,note:`${s.hit}/${s.of} completed`}); streak=0; return; }
+    streak++;
+    const mult=!DB.stake.escalate?1:(streak===1?1:streak===2?1.5:2);
+    rows.push({w,state:'offtrack',amt:DB.stake.amount*mult,streak,mult,
+      note:`${s.hit}/${s.of} completed${mult>1?` · ${mult}× (${streak} weeks running)`:''}`});
+  });
+  return rows;
+}
+const owed=()=>stakeLedger().reduce((t,r)=>t+r.amt,0)-(DB.stake.paid||0);
+
+/* ============================================================
+   ICONS / PILLS
+   ============================================================ */
+const I={
+  check:'<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>',
+  alert:'<svg viewBox="0 0 24 24"><path d="M12 8v5M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>',
+  x:'<svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>',
+  plane:'<svg viewBox="0 0 24 24"><path d="M17 3l4 4-7 5 1 8-2 1-3-7-5 2-1 3-2-1 1-5-5-3 1-2 8 1z"/></svg>',
+  dot:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/></svg>'
+};
+function pill(state){
+  const M={
+    ontrack:  ['p-good','check','On track'],
+    inprogress:['p-off','dot','In progress'],
+    slipping: ['p-warn','alert','Slipping'],
+    offtrack: ['p-bad','x','Off track'],
+    away:     ['p-off','plane','Away'],
+    future:   ['p-off','dot','Upcoming']
+  }[state]||['p-off','dot','—'];
+  return `<span class="pill ${M[0]}">${I[M[1]]}${M[2]}</span>`;
+}
+
+/* ============================================================
+   VIEWS
+   ============================================================ */
+let TAB='today';
+const view=document.getElementById('view');
+
+function render(){
+  const ws=weekStatus(weekKey(new Date()));
+  document.getElementById('hdrPill').innerHTML=pill(ws.state);
+  const T={today:'Today',week:'This week',progress:'Progress',stake:'Stake',plan:'The plan',sync:'Sync'};
+  document.getElementById('hdrTitle').textContent=T[TAB];
+  document.getElementById('hdrSub').textContent=
+    TAB==='today' ? new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})
+    : `Week ${weekNum(new Date())} of 12`;
+  ({today:vToday,week:vWeek,progress:vProgress,stake:vStake,plan:vPlan,sync:vSync})[TAB]();
+  document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===TAB));
+}
+
+/* ---------- TODAY ---------- */
+function vToday(){
+  const ds=todayISO(), d=new Date();
+  const away=isAway(ds);
+  const type=away?'rest':SCHEDULE[d.getDay()];
+  const S=PROGRAMME[type];
+  const e=DB.log[ds]||{};
+  const isGym=type==='gymA'||type==='gymB';
+  const ws=weekStatus(weekKey(d));
+
+  let h='';
+
+  if(away){
+    h+=`<div class="banner b-info">${I.plane}<div><b>Flagged as away.</b> This day is excused — it will not count against your consistency or trigger the stake.</div></div>`;
+  } else if(ws.state==='slipping'){
+    h+=`<div class="banner b-warn">${I.alert}<div><b>You are two sessions down this week.</b> One more miss and the week goes off track and the stake triggers. Going away? Flag it on the Stake tab <em>before</em> the week ends.</div></div>`;
+  }
+
+  h+=`<div class="card">
+    <div class="row"><div>
+      <h2>${S.label}</h2><div class="sec">${S.sub}</div>
+    </div>${e.done?pill('ontrack'):''}</div>
+    ${S.tip?`<div class="note">${S.tip}</div>`:''}
+  </div>`;
+
+  if(type==='flex'){
+    h+=`<div class="card"><h3>What are you doing today?</h3>
+      <div class="btnrow mt">
+        <button class="btn" onclick="mark('bball')">Basketball</button>
+        <button class="btn" onclick="mark('gymA')">Day A</button>
+      </div>
+      <button class="btn ghost mt" onclick="mark('rest')">Resting today</button>
+      <div class="note">Pulling Day A to today means Wednesday becomes rest — that gives Thursday’s game 48h instead of 24h. It is the better version of the week.</div>
+    </div>`;
+  }
+
+  if(isGym||(e.type==='gymA'||e.type==='gymB')){
+    const key=e.type||type, prog=PROGRAMME[key];
+    if(prog&&prog.ex.length){
+      h+=`<h3 class="mt2" style="margin-bottom:8px">Log your sets</h3>`;
+      prog.ex.forEach(x=>{
+        const sets=(e.sets&&e.sets[x.k])||[];
+        const last=lastFor(x.k,ds);
+        h+=`<div class="ex${sets.length?' done':''}">
+          <div class="top"><div>
+            <div class="nm">${x.n}</div>
+            <div class="tgt">${x.t}${last?` · last: ${last.w}kg × ${last.r}`:''}</div>
+          </div></div>
+          ${[0,1,2].map(i=>`<div class="setrow">
+            <div class="n">${i+1}</div>
+            <input inputmode="decimal" placeholder="kg" value="${sets[i]?.w??''}" onchange="setLog('${x.k}',${i},'w',this.value)">
+            <input inputmode="numeric" placeholder="reps" value="${sets[i]?.r??''}" onchange="setLog('${x.k}',${i},'r',this.value)">
+          </div>`).join('')}
+          <div class="note">${x.note}</div>
+        </div>`;
+      });
+    }
+  }
+
+  if(type!=='flex'&&type!=='rest'){
+    h+=`<button class="btn ${e.done?'':'primary'}" onclick="toggleDone()">${e.done?'Completed ✓ — tap to undo':'Mark complete'}</button>`;
+  }
+
+  // weight
+  const w=DB.weights[ds];
+  h+=`<div class="card mt2"><h3>Morning weight</h3>
+    <div class="row mt"><input inputmode="decimal" placeholder="kg" value="${w??''}" onchange="logWeight(this.value)" style="flex:1">
+    <div class="muted" style="white-space:nowrap">${trendTxt()}</div></div>
+    <div class="note">Same conditions each time — after the bathroom, before food. Single readings mean little; the 7-day average is the signal.</div>
+  </div>`;
+
+  // nutrition reference
+  h+=`<details><summary>Daily nutrition targets</summary>
+    <table class="mt"><tbody>
+      <tr><td>Calories</td><td class="num">${NUTRITION.kcal} kcal</td></tr>
+      <tr><td>Protein</td><td class="num">${NUTRITION.protein} g</td></tr>
+      <tr><td>Fat</td><td class="num">${NUTRITION.fat} g</td></tr>
+      <tr><td>Carbs</td><td class="num">${NUTRITION.carbs} g</td></tr>
+    </tbody></table>
+    <div class="note">Log in MyFitnessPal. Protein is the one to hit consistently — it protects muscle while you are in a deficit.</div>
+  </details>`;
+
+  view.innerHTML=h;
+}
+
+function lastFor(k,before){
+  const ds=Object.keys(DB.log).filter(d=>d<before).sort().reverse();
+  for(const d of ds){const s=DB.log[d]?.sets?.[k];if(s&&s.length&&s[0].w)return s[0];}
+  return null;
+}
+window.setLog=(k,i,f,v)=>{
+  const ds=todayISO();
+  const e=DB.log[ds]||(DB.log[ds]={type:SCHEDULE[new Date().getDay()],sets:{}});
+  e.sets=e.sets||{}; e.sets[k]=e.sets[k]||[];
+  e.sets[k][i]=e.sets[k][i]||{}; e.sets[k][i][f]=v;
+  save();
+};
+window.toggleDone=()=>{
+  const ds=todayISO();
+  const e=DB.log[ds]||(DB.log[ds]={type:SCHEDULE[new Date().getDay()],sets:{}});
+  e.done=!e.done; save(); render();
+};
+window.mark=t=>{
+  const ds=todayISO();
+  DB.log[ds]={...(DB.log[ds]||{}),type:t,done:t!=='rest',sets:DB.log[ds]?.sets||{}};
+  save(); render();
+};
+window.logWeight=v=>{
+  const ds=todayISO(); const n=parseFloat(v);
+  if(isNaN(n)) delete DB.weights[ds]; else DB.weights[ds]=n;
+  save(); render();
+};
+
+function avg7(end){
+  const e=parse(end),v=[];
+  for(let i=0;i<7;i++){const k=DB.weights[iso(addD(e,-i))];if(k!=null)v.push(k);}
+  return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;
+}
+function trendTxt(){
+  const now=avg7(todayISO()), then=avg7(iso(addD(new Date(),-14)));
+  if(now==null) return 'No data yet';
+  if(then==null) return `7-day avg ${now.toFixed(1)}kg`;
+  const d=now-then;
+  return `7-day avg ${now.toFixed(1)}kg · ${d>0?'+':''}${d.toFixed(1)}kg /2wk`;
+}
+
+/* ---------- WEEK ---------- */
+function vWeek(){
+  const wk=weekKey(new Date()), s=weekStatus(wk), t=todayISO();
+  let h=`<div class="card">
+    <div class="row"><div><h2>Week ${weekNum(new Date())}</h2>
+    <div class="sec">${s.hit} of ${s.of} core sessions</div></div>${pill(s.state)}</div>
+    <div class="week mt">${s.days.map(ds=>{
+      const dd=parse(ds), ty=isAway(ds)?'rest':SCHEDULE[dd.getDay()], e=DB.log[ds]||{};
+      const m=isAway(ds)?'✈︎':e.done?'✓':ds<t?'·':ty==='rest'?'—':'○';
+      return `<div class="day${ds===t?' today':''}"><div class="d">${DOW[dd.getDay()][0]}</div><div class="m">${m}</div></div>`;
+    }).join('')}</div>
+    <div class="legendless">✓ done · ○ upcoming · · missed · — rest · ✈︎ away</div>
+  </div>`;
+
+  h+=`<h3 class="mt2" style="margin-bottom:8px">Schedule</h3>`;
+  const scored = s.state!=='future';
+  s.days.forEach(ds=>{
+    const dd=parse(ds), away=isAway(ds), ty=away?'rest':SCHEDULE[dd.getDay()];
+    const P=PROGRAMME[ty], e=DB.log[ds]||{};
+    const swapped = e.type && e.type!==ty ? PROGRAMME[e.type] : null;
+    const core=CORE.some(c=>((c.dow+6)%7)===((dd.getDay()+6)%7)&&!away);
+    h+=`<div class="card tight"><div class="row">
+      <div><div style="font-weight:600;font-size:14.5px">${DOW[dd.getDay()]} · ${P.label}</div>
+      <div class="muted">${away?'Flagged away':P.sub}${core?' · counts toward your week':''}</div>
+      ${swapped?`<div class="muted">Logged instead: ${swapped.label}</div>`:''}</div>
+      ${e.done?pill('ontrack'):away?pill('away'):(scored&&ds<t&&core)?pill('offtrack'):''}
+    </div></div>`;
+  });
+
+  // history
+  const past=allWeeks().filter(w=>w!==wk).reverse();
+  if(past.length){
+    h+=`<h3 class="mt2" style="margin-bottom:8px">Previous weeks</h3>`;
+    past.forEach(w=>{const st=weekStatus(w);
+      h+=`<div class="card tight"><div class="row">
+        <div><div style="font-weight:600;font-size:14.5px">Week ${weekNum(parse(w))}</div>
+        <div class="muted">${fmtD(w)} · ${st.hit}/${st.of}</div></div>${pill(st.state)}</div></div>`;});
+  }
+  view.innerHTML=h;
+}
+
+/* ---------- PROGRESS ---------- */
+function vProgress(){
+  const now=avg7(todayISO()), start=DB.settings.startWeight, goal=DB.settings.goalWeight;
+  const cur=now??start;
+  const pct=Math.max(0,Math.min(100,((start-cur)/(start-goal))*100));
+
+  let h=`<div class="card">
+    <h3>Weight — 7-day average</h3>
+    <div class="hero mt">${cur.toFixed(1)}<span class="u"> kg</span></div>
+    <div class="sec">${(start-cur).toFixed(1)}kg down · ${(cur-goal).toFixed(1)}kg to go</div>
+    <div style="background:var(--surface-2);border-radius:999px;height:7px;margin-top:12px;overflow:hidden">
+      <div style="background:var(--series-1);height:100%;width:${pct}%;border-radius:999px"></div>
+    </div>
+    <div class="muted" style="margin-top:6px">${pct.toFixed(0)}% of the way from ${start}kg to ${goal}kg</div>
+  </div>`;
+
+  h+=`<div class="card">${weightChart()}</div>`;
+  h+=`<div class="card">${consistencyChart()}</div>`;
+
+  // strength
+  const keys=[['squat','Back Squat'],['rdl','RDL'],['chest','Chest Press'],['pull','Lat Pulldown'],
+              ['ohp','Shoulder Press'],['row','Seated Row']];
+  const rows=keys.map(([k,n])=>{
+    const hist=Object.keys(DB.log).filter(d=>DB.log[d]?.sets?.[k]?.[0]?.w).sort();
+    if(!hist.length) return null;
+    const f=DB.log[hist[0]].sets[k][0], l=DB.log[hist[hist.length-1]].sets[k][0];
+    return{n,first:f,last:l,d:(parseFloat(l.w)||0)-(parseFloat(f.w)||0)};
+  }).filter(Boolean);
+
+  h+=`<div class="card"><h3>Strength trend</h3>`;
+  h+= rows.length? `<table class="mt"><thead><tr><th>Lift</th><th class="num">First</th><th class="num">Latest</th><th class="num">Δ</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr><td>${r.n}</td><td class="num">${r.first.w}kg</td><td class="num">${r.last.w}kg</td>
+    <td class="num" style="color:${r.d>0?'var(--good)':r.d<0?'var(--critical)':'var(--muted)'}">${r.d>0?'+':''}${r.d}kg</td></tr>`).join('')}
+    </tbody></table>
+    <div class="note">Falling weight with <em>stable or rising</em> lifts means the deficit is working. Falling weight with <em>falling</em> lifts means it is too aggressive — add 150–200 kcal back.</div>`
+    : `<div class="muted mt">Log some sets and your strength trend will appear here.</div>`;
+  h+=`</div>`;
+
+  h+=`<div class="card"><h3>Goal</h3>
+    <div class="grid2 mt">
+      <div><label class="f">Start kg</label><input inputmode="decimal" value="${start}" onchange="setCfg('startWeight',this.value)"></div>
+      <div><label class="f">Goal kg</label><input inputmode="decimal" value="${goal}" onchange="setCfg('goalWeight',this.value)"></div>
+    </div></div>`;
+
+  view.innerHTML=h; wireChart();
+}
+window.setCfg=(k,v)=>{const n=parseFloat(v);if(!isNaN(n)){DB.settings[k]=n;save();render();}};
+
+/* ---------- CHARTS ---------- */
+// Single series → no legend box; the title names it. One hue, 2px line, 8px markers.
+function weightChart(){
+  const pts=Object.keys(DB.weights).sort().map(d=>({d,v:DB.weights[d]}));
+  if(pts.length<2) return `<h3>Weight trend</h3><div class="muted mt">Log at least two mornings to see a trend.</div>`;
+  const W=560,H=170,P={t:12,r:14,b:24,l:34};
+  const xs=pts.map(p=>parse(p.d).getTime()), vs=pts.map(p=>p.v);
+  const x0=Math.min(...xs),x1=Math.max(...xs);
+  let v0=Math.min(...vs),v1=Math.max(...vs); const pad=Math.max(0.6,(v1-v0)*0.18); v0-=pad;v1+=pad;
+  const X=t=>P.l+((t-x0)/((x1-x0)||1))*(W-P.l-P.r);
+  const Y=v=>P.t+(1-(v-v0)/((v1-v0)||1))*(H-P.t-P.b);
+  const line=pts.map((p,i)=>`${i?'L':'M'}${X(parse(p.d).getTime()).toFixed(1)} ${Y(p.v).toFixed(1)}`).join(' ');
+  const ticks=[v0+(v1-v0)*0.15,(v0+v1)/2,v1-(v1-v0)*0.15];
+  return `<h3>Weight trend <span class="muted" style="font-weight:400">· kg, daily</span></h3>
+  <svg class="chart" id="wc" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Body weight over time">
+    ${ticks.map(t=>`<line x1="${P.l}" x2="${W-P.r}" y1="${Y(t).toFixed(1)}" y2="${Y(t).toFixed(1)}" stroke="var(--grid)" stroke-width="1"/>
+      <text x="${P.l-7}" y="${(Y(t)+4).toFixed(1)}" fill="var(--muted)" font-size="11" text-anchor="end" font-family="system-ui">${t.toFixed(1)}</text>`).join('')}
+    <line x1="${P.l}" x2="${W-P.r}" y1="${H-P.b}" y2="${H-P.b}" stroke="var(--axis)" stroke-width="1"/>
+    <path d="${line}" fill="none" stroke="var(--series-1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${pts.map(p=>`<circle cx="${X(parse(p.d).getTime()).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="4"
+       fill="var(--series-1)" stroke="var(--surface)" stroke-width="2" data-d="${p.d}" data-v="${p.v}"/>`).join('')}
+    <text x="${P.l}" y="${H-6}" fill="var(--muted)" font-size="11" font-family="system-ui">${fmtD(pts[0].d)}</text>
+    <text x="${W-P.r}" y="${H-6}" fill="var(--muted)" font-size="11" text-anchor="end" font-family="system-ui">${fmtD(pts[pts.length-1].d)}</text>
+  </svg>`;
+}
+
+// Status colours + always a text label under each bar — never colour alone.
+function consistencyChart(){
+  const ws=allWeeks();
+  const done=ws.filter(w=>{const s=weekStatus(w);return s.state!=='future';});
+  if(!done.length) return `<h3>Weekly consistency</h3><div class="muted mt">Your first week has not started yet. Bars appear here once sessions are logged.</div>`;
+  const show=done.slice(-12);
+  return `<h3>Weekly consistency <span class="muted" style="font-weight:400">· core sessions completed</span></h3>
+  <div style="display:flex;gap:4px;align-items:flex-end;height:92px;margin-top:14px">
+    ${show.map(w=>{const s=weekStatus(w);
+      const c=s.state==='away'?'var(--muted)':s.state==='offtrack'?'var(--critical)':s.state==='slipping'?'var(--warning)':s.state==='ontrack'?'var(--good)':'var(--axis)';
+      const hgt=Math.max(6,(s.hit/Math.max(1,s.of))*78);
+      return `<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px">
+        <div style="width:100%;height:${hgt}px;background:${c};border-radius:4px 4px 0 0" title="Week ${weekNum(parse(w))}: ${s.hit}/${s.of}"></div>
+        <div style="font-size:9.5px;color:var(--muted);font-variant-numeric:tabular-nums">${s.state==='away'?'✈︎':s.hit}</div>
+      </div>`;}).join('')}
+  </div>
+  <div class="legendless">Number under each bar = core sessions completed that week (out of 4). ✈︎ = flagged away.</div>`;
+}
+
+function wireChart(){
+  const svg=document.getElementById('wc'), tip=document.getElementById('tip');
+  if(!svg) return;
+  const dots=[...svg.querySelectorAll('circle')];
+  const move=ev=>{
+    const p=ev.touches?ev.touches[0]:ev, r=svg.getBoundingClientRect();
+    let best=null,bd=1e9;
+    dots.forEach(c=>{const cr=c.getBoundingClientRect();
+      const d=Math.abs((cr.left+cr.width/2)-p.clientX); if(d<bd){bd=d;best=c;}});
+    if(!best||bd>60){tip.style.opacity=0;return;}
+    tip.innerHTML=`<b>${best.dataset.v} kg</b><br><span style="color:var(--muted)">${fmtD(best.dataset.d)}</span>`;
+    tip.style.opacity=1;
+    const br=best.getBoundingClientRect();
+    tip.style.left=Math.min(window.innerWidth-110,Math.max(8,br.left-40))+'px';
+    tip.style.top=(br.top-52)+'px';
+  };
+  ['mousemove','touchstart','touchmove'].forEach(e=>svg.addEventListener(e,move,{passive:true}));
+  ['mouseleave','touchend'].forEach(e=>svg.addEventListener(e,()=>tip.style.opacity=0));
+}
+
+/* ---------- STAKE ---------- */
+function vStake(){
+  const L=stakeLedger(), o=owed(), st=DB.stake;
+  let h='';
+
+  h+=`<div class="card">
+    <h3>Currently owed</h3>
+    <div class="hero mt" style="color:${o>0?'var(--critical)':'var(--good)'}">${st.currency}${o.toFixed(2)}</div>
+    <div class="sec">${o>0?`Owed to ${st.cause||'your chosen cause'}`:'Nothing outstanding. Keep it there.'}</div>
+    ${o>0?`<button class="btn mt" onclick="settle()">I have paid this</button>`:''}
+  </div>`;
+
+  h+=`<div class="card"><h3>How this works</h3>
+    <div class="sec mt">Four sessions a week count: <b>Monday basketball, Day A, Thursday basketball, Day B</b>.</div>
+    <table class="mt"><tbody>
+      <tr><td>3 or 4 of 4</td><td class="num" style="color:var(--good)">No charge</td></tr>
+      <tr><td>2 or fewer</td><td class="num" style="color:var(--critical)">${st.currency}${st.amount}</td></tr>
+      <tr><td>Flagged away in advance</td><td class="num" style="color:var(--muted)">Excused</td></tr>
+    </tbody></table>
+    <div class="note">Missing one session in a week is free — that is deliberate. The charge is for losing the <em>pattern</em>, not for one bad day. Consecutive off-track weeks escalate: 1× → 1.5× → 2×, because a second and third slipped week is the actual failure mode, not the first.</div>
+  </div>`;
+
+  h+=`<div class="card"><h3>Going away? Flag it first.</h3>
+    <div class="grid2 mt"><div><label class="f">From</label><input type="date" id="af"></div>
+    <div><label class="f">To</label><input type="date" id="at"></div></div>
+    <div class="mt"><label class="f">Reason</label><input id="ar" placeholder="Holiday, illness, work trip…"></div>
+    <button class="btn mt" onclick="addAway()">Flag these days as away</button>
+    <div class="note">Flag it <b>before</b> the week ends, or it counts as a miss. That is the whole point — the app cannot tell the difference between a holiday and giving up unless you tell it in advance.</div>
+    ${DB.away.length?`<hr>${DB.away.map((a,i)=>`<div class="ledger"><div>${fmtD(a.from)} → ${fmtD(a.to)}<div class="muted">${a.reason||'No reason given'}</div></div>
+      <button class="btn danger" style="width:auto;padding:5px 11px;font-size:13px" onclick="rmAway(${i})">Remove</button></div>`).join('')}`:''}
+  </div>`;
+
+  h+=`<div class="card"><h3>Settings</h3>
+    <div class="grid2 mt">
+      <div><label class="f">Stake per week</label><input inputmode="decimal" value="${st.amount}" onchange="setStake('amount',this.value)"></div>
+      <div><label class="f">Currency</label><input value="${st.currency}" onchange="setStake('currency',this.value)"></div>
+    </div>
+    <div class="mt"><label class="f">Paid to</label><input value="${st.cause}" placeholder="Charity, mate, forfeit pot…" onchange="setStake('cause',this.value)"></div>
+    <label class="f mt" style="display:flex;gap:9px;align-items:center;text-transform:none;letter-spacing:0;font-size:14px;color:var(--ink)">
+      <input type="checkbox" style="width:auto" ${st.escalate?'checked':''} onchange="setStake('escalate',this.checked)"> Escalate consecutive off-track weeks
+    </label>
+  </div>`;
+
+  if(L.length){
+    h+=`<div class="card"><h3>Ledger</h3>${L.slice().reverse().map(r=>`<div class="ledger">
+      <div><div style="font-weight:600">Week ${weekNum(parse(r.w))}</div><div class="muted">${r.note}</div></div>
+      <div style="text-align:right;white-space:nowrap"><div style="font-weight:700;color:${r.amt?'var(--critical)':'var(--good)'}">${r.amt?`${st.currency}${r.amt.toFixed(2)}`:'—'}</div></div>
+    </div>`).join('')}</div>`;
+  }
+
+  h+=`<div class="banner b-info mt2">${I.alert}<div><b>The app cannot take your money.</b> It does the accounting and holds you to it; moving the money is on you. If you want it enforced automatically, run the same rules on <b>Beeminder</b> or <b>StickK</b>, which have real payment systems.</div></div>`;
+
+  view.innerHTML=h;
+}
+window.setStake=(k,v)=>{DB.stake[k]=(k==='amount')?(parseFloat(v)||0):v;save();render();};
+window.settle=()=>{DB.stake.paid=stakeLedger().reduce((t,r)=>t+r.amt,0);save();render();};
+window.addAway=()=>{
+  const f=document.getElementById('af').value,t=document.getElementById('at').value,r=document.getElementById('ar').value;
+  if(!f||!t){alert('Pick both dates.');return;}
+  DB.away.push({from:f,to:t<f?f:t,reason:r});save();render();
+};
+window.rmAway=i=>{DB.away.splice(i,1);save();render();};
+window.importData=el=>{
+  const f=el.files&&el.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const d=JSON.parse(r.result);
+      if(!d||typeof d!=='object'||!('log' in d)) throw new Error('Not a Coach backup file');
+      DB={log:d.log||{},weights:d.weights||{},away:d.away||[],
+          stake:Object.assign({enabled:true,amount:15,currency:'£',cause:'',paid:0,escalate:true},d.stake||{}),
+          settings:Object.assign({startWeight:79.4,goalWeight:72},d.settings||{})};
+      save(); render(); alert('Backup restored.');
+    }catch(e){ alert('Could not read that file: '+e.message); }
+    el.value='';
+  };
+  r.readAsText(f);
+};
+window.exportData=()=>{
+  const b=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const u=URL.createObjectURL(b),a=document.createElement('a');
+  a.href=u;a.download='coach-data.json';a.click();URL.revokeObjectURL(u);
+};
+
+/* ---------- PLAN ---------- */
+function vPlan(){
+  let h=`<div class="card"><h3>Weekly structure</h3><table class="mt"><tbody>
+    ${[1,2,3,4,5,6,0].map(d=>{const P=PROGRAMME[SCHEDULE[d]];
+      return `<tr><td style="width:52px;color:var(--muted);font-weight:600">${DOW[d]}</td><td>${P.label}<div class="muted">${P.sub}</div></td></tr>`;}).join('')}
+  </tbody></table></div>`;
+
+  ['gymA','gymB'].forEach(k=>{const P=PROGRAMME[k];
+    h+=`<details open><summary>${P.label}</summary>
+      <div class="muted" style="margin:4px 0 10px">${P.sub}</div>
+      <table><thead><tr><th>Exercise</th><th class="num">Target</th></tr></thead><tbody>
+      ${P.ex.map(x=>`<tr><td>${x.n}<div class="muted">${x.note}</div></td><td class="num">${x.t}</td></tr>`).join('')}
+      </tbody></table><div class="note">${P.tip}</div></details>`;});
+
+  h+=`<details><summary>Progression rules</summary>
+    <div class="sec mt"><b>Weeks 1–4 · Foundation.</b> Add the smallest available increment when form holds. Technique over load.</div>
+    <div class="sec mt"><b>Weeks 5–8 · Overload.</b> Double progression — work up the rep range, then add weight.</div>
+    <div class="sec mt"><b>Weeks 9–12 · Consolidation.</b> RPE 8–9 on primaries. Deload rather than push through if basketball or sleep is degrading.</div>
+    <div class="note">Rest 90s on compounds, 60s on accessories. If a game leaves you beaten up, drop the next session’s load 10–15% rather than skipping it.</div>
+  </details>`;
+
+  h+=`<details><summary>Why it is built this way</summary>
+    <div class="sec mt">Two gym sessions, so everything has to earn its place. Basketball already gives you jumping, deceleration, change of direction and conditioning. The gym covers what it does not: raw strength, posterior chain (the biggest lever against hamstring strains), single-leg strength, upper body, and calves/core for ankle and trunk resilience.</div>
+    <div class="sec mt">No extra plyometrics — that would duplicate what two hours of basketball twice a week already does, at a real recovery cost.</div>
+    <div class="sec mt">At around 27% body fat, losing fat <em>is</em> a performance move: less mass to accelerate, decelerate and jump with. The deficit is moderate on purpose — a steeper one costs you energy, gym performance and on-court sharpness, which defeats the point.</div>
+  </details>`;
+
+  h+=`<div class="banner b-info mt2">${I.alert}<div><b>Logging is manual.</b> A home-screen web app cannot read Apple Health — only a native App Store app can. Manual ticking takes seconds, and typing your top sets is what drives the progression targets anyway.</div></div>`;
+  view.innerHTML=h;
+}
+
+/* ============================================================
+   CLOUD SYNC — Firebase Auth (Google) + Firestore
+   ------------------------------------------------------------
+   Entirely optional. With no config the app runs exactly as
+   before, storing everything locally on the device.
+   ============================================================ */
+const FBV='https://www.gstatic.com/firebasejs/10.12.5';
+
+/* ▼▼▼ PASTE YOUR firebaseConfig BETWEEN THE BRACES BELOW, THEN DEPLOY ▼▼▼
+   Leave it as null to run the app locally with no account or sync.
+   These values are public by design — access is controlled by firestore.rules. */
+const FIREBASE_CONFIG = null;
+/* ▲▲▲ e.g.  const FIREBASE_CONFIG = { apiKey:"AIza…", authDomain:"coach.firebaseapp.com",
+             projectId:"coach", appId:"1:123:web:abc" };                        ▲▲▲ */
+
+// Union-merge two DBs so signing in on a second device never destroys data.
+function mergeDB(a,b){
+  const newer = (b.updatedAt||0) > (a.updatedAt||0) ? b : a;
+  const older = newer===a ? b : a;
+  const mergeMap=(x={},y={})=>{const o={...y,...x};return o;};   // newer wins per key
+  return {
+    log:      mergeMap(newer.log,older.log),
+    weights:  mergeMap(newer.weights,older.weights),
+    away:     (()=>{const seen=new Set(),out=[];
+                 [...(newer.away||[]),...(older.away||[])].forEach(v=>{
+                   const k=`${v.from}|${v.to}`; if(!seen.has(k)){seen.add(k);out.push(v);}});
+                 return out;})(),
+    stake:    Object.assign({},older.stake||{},newer.stake||{}),
+    settings: Object.assign({},older.settings||{},newer.settings||{}),
+    updatedAt: Math.max(a.updatedAt||0,b.updatedAt||0)
+  };
+}
+
+const Cloud=(()=>{
+  let app=null,auth=null,fs=null,api=null,user=null,timer=null,
+      status='off', lastSync=0, err='';
+
+  // Built-in config wins; the Sync tab is a fallback for one-off devices.
+  const cfg=()=>(FIREBASE_CONFIG&&FIREBASE_CONFIG.apiKey)?FIREBASE_CONFIG:Store.get('coach.fbcfg',null);
+  const builtIn=()=>!!(FIREBASE_CONFIG&&FIREBASE_CONFIG.apiKey);
+  const setStatus=(s,e='')=>{status=s;err=e;if(TAB==='sync')render();else updateBadge();};
+
+  function resolvedAuthDomain(c){
+    const h=location.hostname;
+    // Same-origin authDomain is required for signInWithRedirect to work in
+    // Safari / iOS standalone apps. Firebase Hosting serves the auth handler
+    // on both *.web.app and *.firebaseapp.com, so this is safe there.
+    if(/\.web\.app$|\.firebaseapp\.com$/.test(h)) return h;
+    return c.authDomain;
+  }
+  const sameOrigin=c=>resolvedAuthDomain(c)===location.hostname;
+
+  async function init(){
+    const c=cfg();
+    if(!c||!c.apiKey||!c.projectId){setStatus('off');return;}
+    try{
+      setStatus('connecting');
+      const [A,Au,Fs]=await Promise.all([
+        import(`${FBV}/firebase-app.js`),
+        import(`${FBV}/firebase-auth.js`),
+        import(`${FBV}/firebase-firestore.js`)
+      ]);
+      api={...Au,...Fs};
+      app=A.initializeApp({...c,authDomain:resolvedAuthDomain(c)});
+      auth=Au.getAuth(app); fs=Fs.getFirestore(app);
+      try{ await Au.getRedirectResult(auth); }catch(e){ /* surfaced by onAuthStateChanged */ }
+      Au.onAuthStateChanged(auth,async u=>{
+        user=u;
+        if(u){ setStatus('syncing'); await pull(); setStatus('on'); }
+        else setStatus('out');
+        render();
+      });
+    }catch(e){ setStatus('error','Could not load Firebase: '+e.message); }
+  }
+
+  async function signIn(){
+    const c=cfg(); if(!auth){await init();}
+    if(!auth){setStatus('error','Firebase is not configured yet.');return;}
+    const p=new api.GoogleAuthProvider();
+    try{
+      // Redirect is the reliable flow inside an iOS home-screen app, but only
+      // when the auth domain matches the site's own origin.
+      if(sameOrigin(c)) await api.signInWithRedirect(auth,p);
+      else await api.signInWithPopup(auth,p);
+    }catch(e){
+      if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment'){
+        try{ await api.signInWithRedirect(auth,p); }
+        catch(e2){ setStatus('error',e2.message); }
+      } else setStatus('error',e.code==='auth/unauthorized-domain'
+        ? `This domain (${location.hostname}) is not authorised in Firebase → Authentication → Settings → Authorized domains.`
+        : e.message);
+    }
+  }
+  async function doSignOut(){ if(auth){ await api.signOut(auth); user=null; setStatus('out'); render(); } }
+
+  async function pull(){
+    if(!user||!fs) return;
+    try{
+      const ref=api.doc(fs,'users',user.uid);
+      const snap=await api.getDoc(ref);
+      if(snap.exists()){
+        DB=mergeDB(DB,snap.data());
+        Store.set('coach.db',DB);
+      }
+      await push(true);
+      lastSync=Date.now();
+    }catch(e){ setStatus('error',e.message); }
+  }
+
+  async function push(silent){
+    if(!user||!fs) return;
+    try{
+      await api.setDoc(api.doc(fs,'users',user.uid),JSON.parse(JSON.stringify(DB)));
+      lastSync=Date.now();
+      if(!silent) setStatus('on');
+    }catch(e){ setStatus('error',e.message); }
+  }
+
+  function queue(){ if(!user) return; clearTimeout(timer); timer=setTimeout(()=>push(),1200); }
+
+  function updateBadge(){
+    const el=document.getElementById('syncDot'); if(!el) return;
+    el.style.background = status==='on'?'var(--good)' : status==='error'?'var(--critical)'
+      : status==='syncing'||status==='connecting'?'var(--warning)':'var(--muted)';
+  }
+
+  return{init,signIn,signOut:doSignOut,queue,pull,push,get builtIn(){return builtIn()},
+    get user(){return user}, get status(){return status}, get err(){return err},
+    get lastSync(){return lastSync}, get configured(){return !!cfg()},
+    get sameOrigin(){const c=cfg();return c?sameOrigin(c):false},
+    saveCfg(o){Store.set('coach.fbcfg',o);init();},
+    clearCfg(){Store.set('coach.fbcfg',null);location.reload();}};
+})();
+window.Cloud=Cloud;
+
+/* ---------- SYNC TAB ---------- */
+function vSync(){
+  const c=Cloud.configured?(Cloud.builtIn?FIREBASE_CONFIG:Store.get('coach.fbcfg',null)):null;
+  const s=Cloud.status, u=Cloud.user;
+  let h='';
+
+  const SM={off:['p-off','dot','Local only'],out:['p-off','dot','Signed out'],
+    connecting:['p-warn','alert','Connecting'],syncing:['p-warn','alert','Syncing'],
+    on:['p-good','check','Synced'],error:['p-bad','x','Error']}[s]||['p-off','dot','—'];
+
+  h+=`<div class="card"><div class="row">
+    <div><h2>${u?u.displayName||u.email:'Not signed in'}</h2>
+    <div class="sec">${u?u.email:'Your data is stored on this device only'}</div></div>
+    <span class="pill ${SM[0]}">${I[SM[1]]}${SM[2]}</span></div>
+    ${Cloud.lastSync?`<div class="muted mt">Last synced ${new Date(Cloud.lastSync).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</div>`:''}
+    ${Cloud.err?`<div class="banner b-bad mt">${I.alert}<div>${Cloud.err}</div></div>`:''}
+    ${c?(u?`<button class="btn ghost mt" onclick="Cloud.signOut()">Sign out</button>`
+         :`<button class="btn primary mt" onclick="Cloud.signIn()">Sign in with Google</button>`):''}
+  </div>`;
+
+  if(!c){
+    h+=`<div class="card"><h3>Connect a database</h3>
+      <div class="sec mt">Optional. Without this the app works fine, but your data lives only on this phone — clear Safari data or lose the phone and it is gone.</div>
+      <div class="note">In the Firebase console: create a project → add a <b>Web app</b> → copy the <code>firebaseConfig</code> object → paste it below. Then enable <b>Google</b> under Authentication, and create a <b>Firestore</b> database.</div>
+      <label class="f mt">Paste firebaseConfig</label>
+      <textarea id="fbcfg" rows="7" style="font:inherit;font-size:13px;font-family:ui-monospace,monospace;background:var(--surface-2);border:1px solid var(--border);color:var(--ink);border-radius:9px;padding:10px;width:100%" placeholder='{ "apiKey": "...", "authDomain": "...", "projectId": "...", "appId": "..." }'></textarea>
+      <button class="btn primary mt" onclick="saveCfg()">Connect</button>
+    </div>`;
+  } else {
+    h+=`<div class="card"><h3>Connection</h3>
+      <table class="mt"><tbody>
+        <tr><td>Project</td><td class="num">${c.projectId||'—'}</td></tr>
+        <tr><td>Auth domain</td><td class="num">${c.authDomain||'—'}</td></tr>
+        <tr><td>Sign-in flow</td><td class="num">${Cloud.sameOrigin?'Redirect':'Popup'}</td></tr>
+      </tbody></table>
+      ${!Cloud.sameOrigin?`<div class="banner b-warn mt">${I.alert}<div><b>This site is not served from your Firebase domain.</b> Sign-in will use a popup, which iOS blocks inside home-screen apps. Deploy to Firebase Hosting and open it from that address for reliable sign-in.</div></div>`:''}
+      ${Cloud.builtIn?`<div class="muted mt">Configured in <code>index.html</code> — the same for every device.</div>`
+        :`<button class="btn danger mt" onclick="if(confirm('Disconnect the database? Local data is kept.'))Cloud.clearCfg()">Disconnect</button>`}
+    </div>`;
+  }
+
+  h+=`<div class="card"><h3>Backup</h3>
+    <div class="btnrow mt">
+      <button class="btn ghost" onclick="exportData()">Export</button>
+      <button class="btn ghost" onclick="document.getElementById('imp').click()">Import</button>
+    </div>
+    <input type="file" id="imp" accept="application/json" class="hide" onchange="importData(this)">
+    <div class="note">Worth doing occasionally even with sync on.</div>
+  </div>`;
+
+  h+=`<div class="banner b-info">${I.alert}<div>Signing in on a second device <b>merges</b> both sets of data rather than overwriting — per entry, the most recently saved version wins.</div></div>`;
+  view.innerHTML=h;
+}
+window.saveCfg=()=>{
+  const t=document.getElementById('fbcfg').value.trim();
+  try{
+    const json=t.replace(/^[^{]*/,'').replace(/[^}]*$/,'');
+    const o=JSON.parse(json.replace(/([{,]\s*)([A-Za-z_]\w*)\s*:/g,'$1"$2":').replace(/'/g,'"'));
+    if(!o.apiKey||!o.projectId) throw new Error('Missing apiKey or projectId');
+    Cloud.saveCfg(o); render();
+  }catch(e){ alert('Could not read that config: '+e.message); }
+};
+
+/* ---------- BOOT ---------- */
+document.getElementById('tabs').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b)return; TAB=b.dataset.tab; window.scrollTo(0,0); render();
+});
+if(!Store.ok){
+  window.addEventListener('load',()=>{
+    const d=document.createElement('div');
+    d.className='banner b-warn';d.style.margin='12px 16px';
+    d.innerHTML=`${I.alert}<div><b>Storage is blocked in this preview.</b> Your data will not persist here. Save the file and open it in Safari on your iPhone.</div>`;
+    document.body.insertBefore(d,view);
+  });
+}
+render();
+Cloud.init();
+</script>
+</body>
+</html>
