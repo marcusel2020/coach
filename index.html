@@ -126,6 +126,11 @@ svg.chart{width:100%;display:block;overflow:visible;touch-action:none}
   background:var(--green-deep);color:#fff;font-size:10px;font-weight:800;line-height:15px;text-align:center;
   border:1.5px solid var(--surface-2)}
 .poseBtn:active{opacity:.65}
+.photoFill{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit}
+.poseBig{position:relative;overflow:hidden}
+.shot:empty{display:none}
+.shot img{width:100%;border-radius:14px;display:block;margin-top:14px;border:1px solid var(--hair)}
+.shot img[style*="display: none"]{margin-top:0}
 .sheet{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.62);backdrop-filter:blur(3px);
   display:none;align-items:flex-end;justify-content:center}
 .sheet.open{display:flex}
@@ -143,6 +148,25 @@ svg.chart{width:100%;display:block;overflow:visible;touch-action:none}
 .glist li::marker{color:var(--green)}
 .glist.tip li::marker{content:"▸ "}
 .glist.num li::marker{font-weight:700;color:var(--green)}
+
+/* sign-in gate */
+.gate{display:flex;flex-direction:column;align-items:center;text-align:center;
+  padding:44px 20px 40px;min-height:62vh;justify-content:center}
+.gateMark{width:96px;height:96px;border-radius:26px;background:var(--green-dim);
+  border:1px solid rgba(25,155,128,.35);color:var(--green);padding:14px}
+.gateMark svg{width:100%;height:100%;display:block}
+.linkish{background:none;border:0;color:var(--muted);font:inherit;font-size:12.5px;
+  text-decoration:underline;cursor:pointer;margin-top:26px;padding:6px}
+.linkish:active{opacity:.6}
+
+/* week navigator */
+.weeknav{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:var(--surface);border:1px solid var(--hair);border-radius:14px;padding:8px 8px;margin-bottom:12px}
+.weeknav button{background:var(--raised);border:1px solid var(--border);color:var(--ink);
+  width:40px;height:40px;border-radius:11px;font-size:20px;line-height:1;cursor:pointer;flex:none}
+.weeknav button:active{opacity:.6}
+.weeknav .wl{font-weight:650;font-size:15px;text-align:center}
+.weeknav .wd{font-size:12px;color:var(--muted);text-align:center;margin-top:1px}
 .feel{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:10px}
 .fbtn{background:var(--surface-2);border:1px solid var(--border);border-radius:11px;padding:9px 2px 7px;
   color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;font:inherit}
@@ -217,7 +241,7 @@ const Store=(()=>{
 /* ============================================================
    PROGRAMME DEFINITION
    ============================================================ */
-let START='2026-08-17';             // Monday of week 1 — overridden per profile
+let START='2026-08-24';             // Monday of week 1 — overridden per profile
 const PROGRAMME_M={
   gymA:{
     id:'gymA', label:'Gym — Day A', sub:'Lower-body led · main strength session',
@@ -339,13 +363,13 @@ const NUTRITION_M={kcal:2200,protein:175,fat:70,carbs:215};
    ============================================================ */
 const PROFILES={
   'marcusel2020@gmail.com':{
-    name:'Marcus', start:'2026-08-17',
+    name:'Marcus', start:'2026-08-24',
     schedule:SCHEDULE_M, suggest:SUGGEST_M, core:CORE_M,
     programme:PROGRAMME_M, nutrition:NUTRITION_M,
     settings:{startWeight:175,goalWeight:159,unitMigrated:true}
   },
   'ro.racheloconnor@gmail.com':{
-    name:'Rachel', start:'2026-08-17', setup:true,
+    name:'Rachel', start:'2026-08-24', setup:true,
     schedule:{0:'tba',1:'tba',2:'tba',3:'tba',4:'tba',5:'tba',6:'tba'},
     suggest:{0:['swim','sauna'],1:[],2:[],3:[],4:[],5:[],6:['swim','sauna','racquet']},
     core:[],                       // nothing scored until the programme exists
@@ -384,7 +408,13 @@ const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function weekNum(d){
   START=START_FOR();
   const diff=Math.round((monOf(d)-monOf(parse(START)))/604800000);
-  return Math.max(1,diff+1);
+  return diff+1;                       // ≤0 means the week is before the programme starts
+}
+// How to title a week: "Week 3 of 12", "Before Week 1", or "Week 14" past the block.
+function weekTitle(d){
+  const n=weekNum(d);
+  if(n<1) return 'Before Week 1';
+  return n<=12 ? `Week ${n} of 12` : `Week ${n}`;
 }
 
 /* ============================================================
@@ -395,7 +425,7 @@ let DB=Store.get('coach.db',null)||{
   weights:{},      // 'YYYY-MM-DD': lb
   bodyfat:{},      // 'YYYY-MM-DD': % from the Body Hub scanner
   away:[],         // [{from,to,reason}]
-  membership:{ annualCost:3746, myShare:1873, basis:'share', currency:'£', start:'2026-08-17', altMonthly:45, targetPerVisit:15 },
+  membership:{ annualCost:3746, myShare:1873, basis:'share', currency:'£', start:'2026-08-24', altMonthly:45, targetPerVisit:15 },
   visits:[],
   bonus:{},          // 'YYYY-MM-DD': ['blaze','spa'] — optional extras, never scored against you
   settings:{ startWeight:175, goalWeight:159, unitMigrated:true },
@@ -441,13 +471,17 @@ function weekPartlyAway(mondayISO){
    A week flagged as away in advance is excused entirely.
    Consecutive off-track weeks escalate ×1 → ×1.5 → ×2 (capped).
    ============================================================ */
+const notStarted=()=>todayISO()<START_FOR();
+const daysToStart=()=>Math.max(0,Math.round((parse(START_FOR())-parse(todayISO()))/86400000));
+
 function weekStatus(mondayISO){
   const m=parse(mondayISO), today=todayISO();
   const days=[...Array(7)].map((_,i)=>iso(addD(m,i)));
   if(activeProfile().setup) return{state:'setup',hit:0,of:0,days,complete:false};
-  const started=days[0]<=today;
   const beforeProgramme=days[6]<START_FOR();             // week ends before the programme begins
-  if(!started||beforeProgramme) return{state:'future',hit:0,of:4,days};
+  if(beforeProgramme) return{state:'prestart',hit:0,of:4,days};
+  const started=days[0]<=today;
+  if(!started) return{state:'planned',hit:0,of:4,days};
   if(weekAway(mondayISO)) return{state:'away',hit:0,of:4,days,complete:days[6]<today,partial:true};
 
   let hit=0, due=0;
@@ -827,18 +861,27 @@ const GUIDE={
 };
 const guideFor=n=>GUIDE[n]||null;
 
+/* Photos live in /img as <slug>.jpg. If one is missing the drawn
+   diagram shows through instead, so the app never breaks on a gap. */
+const slug=n=>n.toLowerCase().replace(/['’]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+function exImg(name,cls){
+  return `<img class="${cls}" src="img/${slug(name)}.jpg" alt="" loading="lazy"
+     onerror="this.style.display='none'">`;
+}
+
 function openGuide(name){
   const g=guideFor(name); if(!g) return;
   const el=document.getElementById('sheet');
   el.innerHTML=`<div class="sheetInner">
     <div class="sheetTop">
-      <div class="poseBig">${POSE[g.pose]?`<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${POSE[g.pose]}</svg>`:''}</div>
+      <div class="poseBig">${POSE[g.pose]?`<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${POSE[g.pose]}</svg>`:''}${exImg(name,'photoFill')}</div>
       <div style="flex:1;min-width:0">
         <h2>${name}</h2>
         <div class="muted">${g.kit}</div>
       </div>
       <button class="xbtn" onclick="closeGuide()" aria-label="Close">✕</button>
     </div>
+    <div class="shot">${exImg(name,'photoWide')}</div>
     <a class="btn primary" style="display:block;text-align:center;text-decoration:none;margin:14px 0 4px"
        href="https://www.youtube.com/results?search_query=${encodeURIComponent(g.watch)}" target="_blank" rel="noopener">▶ Watch how it is done</a>
     <div class="muted" style="text-align:center;margin-bottom:16px">Opens a YouTube search — pick any clear demo</div>
@@ -863,6 +906,7 @@ function poseIcon(name){
   if(!g||!POSE[g.pose]) return '';
   return `<button class="poseBtn" onclick="event.stopPropagation();openGuide(${JSON.stringify(name).replace(/"/g,'&quot;')})" aria-label="How to do ${name}">
     <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${POSE[g.pose]}</svg>
+    ${exImg(name,'photoFill')}
   </button>`;
 }
 
@@ -885,6 +929,10 @@ function pill(state){
     offtrack: ['p-bad','x','Off track'],
     away:     ['p-off','plane','Away'],
     future:   ['p-off','dot','Upcoming'],
+    prestart: ['p-off','dot','Before start'],
+    planned:  ['p-off','dot','Planned'],
+    starting: ['p-good','check','Starts tomorrow'],
+    soon:     ['p-good','check','Starting soon'],
     bonus:    ['p-good','star','Bonus'],
     setup:    ['p-off','dot','Not set up']
   }[state]||['p-off','dot','—'];
@@ -895,16 +943,22 @@ function pill(state){
    VIEWS
    ============================================================ */
 let TAB='today';
+let WEEKOFF=0;   // 0 = this week, -1 last, +1 next
 const view=document.getElementById('view');
 
 function render(){
+  if(gateActive()){ renderGate(); return; }
+  document.getElementById('tabs').classList.remove('hide');
   const ws=weekStatus(weekKey(new Date()));
-  document.getElementById('hdrPill').innerHTML=pill(ws.state);
+  const pre = notStarted();
+  document.getElementById('hdrPill').innerHTML =
+    pre ? pill(daysToStart()===1?'starting':'soon') : pill(ws.state);
   const T={today:'Today',week:'This week',progress:'Progress',club:'Membership',plan:'The plan',sync:'Sync'};
   document.getElementById('hdrTitle').textContent=T[TAB];
   document.getElementById('hdrSub').textContent=
     TAB==='today' ? new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})
-    : `Week ${weekNum(new Date())} of 12`;
+    : pre ? (daysToStart()===1?'Week 1 starts tomorrow':`Week 1 starts in ${daysToStart()} days`)
+    : weekTitle(new Date());
   ({today:vToday,week:vWeek,progress:vProgress,club:vMembership,plan:vPlan,sync:vSync})[TAB]();
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===TAB));
 }
@@ -923,6 +977,12 @@ function vToday(){
 
   if(away){
     h+=`<div class="banner b-info">${I.plane}<div><b>Flagged as away.</b> This day is excused — it will not count against your consistency.</div></div>`;
+  } else if(notStarted()){
+    const P=activeProfile();
+    h+=`<div class="banner b-info" style="color:var(--green);border-color:var(--green)">${I.check}<div>
+      <b>Week 1 starts ${daysToStart()===1?'tomorrow':`in ${daysToStart()} days`} — Monday ${fmtD(START_FOR()).replace(/^\w+, /,'')}.</b>
+      ${P.setup?'':'First session is Monday basketball. '}Nothing counts until then, so today is a clean slate.
+      Worth doing now: log your weight, and get a baseline Body Hub scan if you can.</div></div>`;
   } else if(ws.state==='slipping'){
     h+=`<div class="banner b-warn">${I.alert}<div><b>You are two sessions down this week.</b> One more miss and the week is off track. Going away? Flag it on the Membership tab <em>before</em> the week ends.</div></div>`;
   }
@@ -1123,46 +1183,62 @@ function trendTxt(){
 
 /* ---------- WEEK ---------- */
 function vWeek(){
-  const wk=weekKey(new Date()), s=weekStatus(wk), t=todayISO();
-  let h=`<div class="card">
-    <div class="row"><div><h2>Week ${weekNum(new Date())}</h2>
-    <div class="sec">${s.hit} of ${s.of} core sessions</div></div>${pill(s.state)}</div>
+  const base=monOf(new Date());
+  const mon=addD(base,WEEKOFF*7);
+  const wk=iso(mon), s=weekStatus(wk), t=todayISO();
+  const wn=weekNum(mon);
+  const label = WEEKOFF===0?'This week':WEEKOFF===-1?'Last week':WEEKOFF===1?'Next week'
+    :WEEKOFF<0?`${-WEEKOFF} weeks ago`:`In ${WEEKOFF} weeks`;
+  const future = wk>iso(base);
+
+  let h=`<div class="weeknav">
+    <button onclick="shiftWeek(-1)" aria-label="Previous week">‹</button>
+    <div>
+      <div class="wl">${label}</div>
+      <div class="wd">${fmtD(wk).replace(/^\w+, /,'')} – ${fmtD(iso(addD(mon,6))).replace(/^\w+, /,'')}</div>
+    </div>
+    <button onclick="shiftWeek(1)" aria-label="Next week">›</button>
+  </div>`;
+  if(WEEKOFF!==0) h+=`<button class="btn ghost" style="margin-bottom:12px" onclick="shiftWeek(0,true)">Back to this week</button>`;
+
+  h+=`<div class="card">
+    <div class="row"><div><h2>${weekTitle(mon)}</h2>
+    <div class="sec">${s.state==='setup'?'Programme not built yet'
+      : future?'Planned — nothing logged yet'
+      : `${s.hit} of ${s.of} core sessions`}</div></div>${pill(s.state)}</div>
     <div class="week mt">${s.days.map(ds=>{
       const dd=parse(ds), ty=isAway(ds)?'rest':SCHEDULE[dd.getDay()], e=DB.log[ds]||{};
       const bn=bonusOn(ds).length;
-      const m=isAway(ds)?'✈︎':e.done?'✓':bn?'★':ds<t?(ty==='open'||ty==='rest'?'—':'·'):ty==='rest'||ty==='open'?'—':'○';
+      const before=ds<START_FOR();
+      const m=before?'·':isAway(ds)?'✈︎':e.done?'✓':bn?'★':ds<t?(ty==='open'||ty==='rest'||ty==='tba'?'—':'·'):(ty==='rest'||ty==='open'||ty==='tba')?'—':'○';
       return `<div class="day${ds===t?' today':''}"><div class="d">${DOW[dd.getDay()][0]}</div><div class="m">${m}</div></div>`;
     }).join('')}</div>
-    <div class="legendless">✓ done · ★ bonus extra · ○ upcoming · · missed · — nothing required · ✈︎ away</div>
-    ${bonusThisWeek()?`<div class="banner b-info mt" style="color:var(--good);border-color:var(--good)">${I.star}<div><b>${bonusThisWeek()} extra${bonusThisWeek()===1?'':'s'} this week</b> on top of the plan. None of it was required.</div></div>`:''}
+    <div class="legendless">✓ done · ★ bonus extra · ○ upcoming · · nothing required · — rest · ✈︎ away</div>
+    ${(!future&&bonusCountWeek(wk))?`<div class="banner b-info mt" style="color:var(--good);border-color:var(--good)">${I.star}<div><b>${bonusCountWeek(wk)} extra${bonusCountWeek(wk)===1?'':'s'}</b> that week on top of the plan.</div></div>`:''}
   </div>`;
 
-  h+=`<h3 class="mt2" style="margin-bottom:8px">Schedule</h3>`;
-  const scored = s.state!=='future';
+  h+=`<h3 class="mt2" style="margin-bottom:8px">${future?'Planned':'Schedule'}</h3>`;
+  const scored = s.state!=='future'&&s.state!=='setup';
   s.days.forEach(ds=>{
     const dd=parse(ds), away=isAway(ds), ty=away?'rest':SCHEDULE[dd.getDay()];
     const P=PROGRAMME[ty], e=DB.log[ds]||{};
     const swapped = e.type && e.type!==ty ? PROGRAMME[e.type] : null;
     const core=CORE.some(c=>((c.dow+6)%7)===((dd.getDay()+6)%7)&&!away);
+    const sug=(SUGGEST[dd.getDay()]||[]).map(k=>BONUS[k].label);
     h+=`<div class="card tight"><div class="row">
-      <div><div style="font-weight:600;font-size:14.5px">${DOW[dd.getDay()]} · ${P.label}</div>
-      <div class="muted">${away?'Flagged away':P.sub}${core?' · counts toward your week':''}</div>
-      ${swapped?`<div class="muted">Logged instead: ${swapped.label}</div>`:''}</div>
-      ${e.done?pill('ontrack'):bonusOn(ds).length?pill('bonus'):away?pill('away'):(scored&&ds<t&&core)?pill('offtrack'):''}
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:14.5px">${DOW[dd.getDay()]} · ${P.label}</div>
+        <div class="muted">${away?'Flagged away':P.sub}${core?' · counts toward your week':''}</div>
+        ${swapped?`<div class="muted">Logged instead: ${swapped.label}</div>`:''}
+        ${sug.length?`<div class="muted">★ optional: ${sug.join(' · ')}</div>`:''}
+      </div>
+      ${e.done?pill('ontrack'):bonusOn(ds).length?pill('bonus'):away?pill('away'):(scored&&ds<t&&core&&ds>=START_FOR())?pill('offtrack'):''}
     </div></div>`;
   });
-
-  // history
-  const past=allWeeks().filter(w=>w!==wk).reverse();
-  if(past.length){
-    h+=`<h3 class="mt2" style="margin-bottom:8px">Previous weeks</h3>`;
-    past.forEach(w=>{const st=weekStatus(w);
-      h+=`<div class="card tight"><div class="row">
-        <div><div style="font-weight:600;font-size:14.5px">Week ${weekNum(parse(w))}</div>
-        <div class="muted">${fmtD(w)} · ${st.hit}/${st.of}</div></div>${pill(st.state)}</div></div>`;});
-  }
   view.innerHTML=h;
 }
+function bonusCountWeek(mondayISO){ return bonusCount(mondayISO, iso(addD(parse(mondayISO),6))); }
+window.shiftWeek=(d,abs)=>{ WEEKOFF = abs?0:WEEKOFF+d; window.scrollTo(0,0); render(); };
 
 /* ---------- PROGRESS ---------- */
 function vProgress(){
@@ -1309,7 +1385,7 @@ function consistencyChart(){
       const c=s.state==='away'?'var(--muted)':s.state==='offtrack'?'var(--critical)':s.state==='slipping'?'var(--warning)':s.state==='ontrack'?'var(--good)':'var(--axis)';
       const hgt=Math.max(6,(s.hit/Math.max(1,s.of))*78);
       return `<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px">
-        <div style="width:100%;height:${hgt}px;background:${c};border-radius:4px 4px 0 0" title="Week ${weekNum(parse(w))}: ${s.hit}/${s.of}"></div>
+        <div style="width:100%;height:${hgt}px;background:${c};border-radius:4px 4px 0 0" title="${weekTitle(parse(w))}: ${s.hit}/${s.of}"></div>
         <div style="font-size:9.5px;color:var(--muted);font-variant-numeric:tabular-nums">${s.state==='away'?'✈︎':s.hit}</div>
       </div>`;}).join('')}
   </div>
@@ -1443,7 +1519,7 @@ window.importData=el=>{
       const d=JSON.parse(r.result);
       if(!d||typeof d!=='object'||!('log' in d)) throw new Error('Not a Coach backup file');
       DB={log:d.log||{},weights:d.weights||{},away:d.away||[],
-          membership:Object.assign({annualCost:3746,myShare:1873,basis:'share',currency:'£',start:'2026-08-17',altMonthly:45,targetPerVisit:15},d.membership||{}),
+          membership:Object.assign({annualCost:3746,myShare:1873,basis:'share',currency:'£',start:'2026-08-24',altMonthly:45,targetPerVisit:15},d.membership||{}),
           visits:d.visits||[],
           bonus:d.bonus||{},
           settings:Object.assign({startWeight:175,goalWeight:159,unitMigrated:true},d.settings||{})};
@@ -1534,7 +1610,7 @@ function vPlan(){
    Entirely optional. With no config the app runs exactly as
    before, storing everything locally on the device.
    ============================================================ */
-const BUILD='2026-08-23 · v12';   // shown on the Sync tab — check this to confirm an update landed
+const BUILD='2026-08-24 · v15';   // shown on the Sync tab — check this to confirm an update landed
 const FBV='https://www.gstatic.com/firebasejs/10.12.5';
 
 /* Firebase config lives in its own file — config.js — which this file never
@@ -1706,7 +1782,7 @@ function vSync(){
         <tr><td>Sign-in flow</td><td class="num">${Cloud.sameOrigin?'Redirect':'Popup'}</td></tr>
       </tbody></table>
       ${!Cloud.sameOrigin?`<div class="banner b-warn mt">${I.alert}<div><b>This site is not served from your Firebase domain.</b> Sign-in will use a popup, which iOS blocks inside home-screen apps. Deploy to Firebase Hosting and open it from that address for reliable sign-in.</div></div>`:''}
-      ${Cloud.builtIn?`<div class="muted mt">Configured in <code>index.html</code> — the same for every device.</div>`
+      ${Cloud.builtIn?`<div class="muted mt">Configured in <code>config.js</code> — the same for every device.</div>`
         :`<button class="btn danger mt" onclick="if(confirm('Disconnect the database? Local data is kept.'))Cloud.clearCfg()">Disconnect</button>`}
     </div>`;
   }
@@ -1746,9 +1822,50 @@ window.saveCfg=()=>{
   }catch(e){ alert('Could not read that config: '+e.message); }
 };
 
+/* ============================================================
+   SIGN-IN GATE
+   ------------------------------------------------------------
+   With sync configured, the app stays closed until someone signs
+   in — the plan and the logging both belong to a person, and a
+   shared link should show a stranger nothing.
+   ============================================================ */
+function gateActive(){
+  return Cloud.configured && !Cloud.user && !Store.get('coach.guest',false);
+}
+function renderGate(){
+  document.getElementById('tabs').classList.add('hide');
+  const st=Cloud.status;
+  const busy = st==='connecting'||st==='syncing';
+  document.getElementById('hdrTitle').textContent='Coach';
+  document.getElementById('hdrSub').textContent='Sign in to continue';
+  document.getElementById('hdrPill').innerHTML='';
+  view.innerHTML=`<div class="gate">
+    <div class="gateMark">
+      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${POSE.squat}</svg>
+    </div>
+    <h2 style="margin-top:18px">Your training, your account</h2>
+    <div class="sec" style="margin-top:8px;max-width:34ch">
+      Everything — sessions, sets, weight, scans — is tied to your Google account and visible only to you.
+    </div>
+    ${Cloud.err?`<div class="banner b-bad" style="margin-top:18px;text-align:left">${I.alert}<div>${Cloud.err}</div></div>`:''}
+    <button class="btn primary" style="margin-top:22px;max-width:320px" ${busy?'disabled':''} onclick="Cloud.signIn()">
+      ${busy?'Connecting…':'Sign in with Google'}
+    </button>
+    <div class="muted" style="margin-top:14px">Two profiles live here. You each see only your own plan and your own data.</div>
+    <button class="linkish" onclick="guestMode()">Continue without signing in</button>
+    <div class="muted" style="margin-top:4px;font-size:11.5px;max-width:32ch">
+      Local only — nothing syncs and nothing is backed up. Use this if sign-in is broken, not by choice.
+    </div>
+  </div>`;
+}
+window.guestMode=()=>{ Store.set('coach.guest',true); render(); };
+window.exitGuest=()=>{ Store.set('coach.guest',false); render(); };
+
 /* ---------- BOOT ---------- */
 document.getElementById('tabs').addEventListener('click',e=>{
-  const b=e.target.closest('button'); if(!b)return; TAB=b.dataset.tab; window.scrollTo(0,0); render();
+  const b=e.target.closest('button'); if(!b)return;
+  if(b.dataset.tab!==TAB) WEEKOFF=0;
+  TAB=b.dataset.tab; window.scrollTo(0,0); render();
 });
 if(!Store.ok){
   window.addEventListener('load',()=>{
