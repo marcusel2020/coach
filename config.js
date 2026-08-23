@@ -12,10 +12,10 @@
    firestore.rules, which limits every user to their own record.
    ============================================================ */
 window.FIREBASE_CONFIG = {
-  apiKey: "PASTE_YOUR_API_KEY",
-  authDomain: "PASTE_YOUR_PROJECT.firebaseapp.com",
-  projectId: "PASTE_YOUR_PROJECT_ID",
-  storageBucket: "PASTE_YOUR_PROJECT.appspot.com",
-  messagingSenderId: "PASTE_YOUR_SENDER_ID",
-  appId: "PASTE_YOUR_APP_ID"
+  apiKey: "AIzaSyBtNFAI1xZdOBZ0u20fiQVyBDlxF4LaVJQ",
+  authDomain: "health-tracker-441b7.firebaseapp.com",
+  projectId: "health-tracker-441b7",
+  storageBucket: "health-tracker-441b7.firebasestorage.app",
+  messagingSenderId: "105184647664",
+  appId: "1:105184647664:web:56621d17bf6c06b6e26535"
 };
