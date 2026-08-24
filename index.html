@@ -191,8 +191,34 @@ svg.chart{width:100%;display:block;overflow:visible;touch-action:none}
   border-radius:999px;padding:6px 12px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
 .chip.on{background:var(--green-dim);border-color:var(--green);color:var(--green)}
 .chip:active{opacity:.65}
+.magicBtn{flex:none;background:var(--green-dim);border:1px solid var(--green);color:var(--green);
+  width:34px;height:34px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.magicBtn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.magicBtn:active{opacity:.6}
+.magicBox{display:flex;gap:8px;align-items:flex-start;margin-top:9px;padding-top:9px;border-top:1px solid var(--hair);
+  font-size:12.5px;color:var(--green);line-height:1.45}
+.magicBox svg{width:14px;height:14px;flex:none;margin-top:2px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .libRow{display:flex;gap:11px;align-items:center;cursor:pointer}
 .libRow:active{opacity:.7}
+.statRow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.statRow .sv{font-size:22px;font-weight:700;letter-spacing:-.02em}
+.statRow .sl{font-size:10.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-top:1px}
+.tblWrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--hair);border-radius:12px;background:var(--surface)}
+table.hist{width:100%;min-width:560px;border-collapse:collapse;font-size:13px}
+table.hist th{position:sticky;top:0;background:var(--surface-2);color:var(--muted);font-size:10px;
+  text-transform:uppercase;letter-spacing:.05em;font-weight:700;padding:9px 10px;text-align:left;white-space:nowrap}
+table.hist td{padding:9px 10px;border-top:1px solid var(--hair);vertical-align:top}
+table.hist td.dt{color:var(--muted);white-space:nowrap;font-size:12px}
+table.hist td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hn{font-weight:600;line-height:1.3}
+.hnote{font-size:11.5px;color:var(--muted);margin-top:2px}
+.catChip{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 7px;border-radius:6px;white-space:nowrap;
+  background:var(--surface-2);color:var(--ink-2);border:1px solid var(--border)}
+.c-gym{color:var(--green);border-color:rgba(25,155,128,.4)}
+.c-basketball{color:var(--warning);border-color:rgba(224,163,46,.4)}
+.c-class{color:var(--series-1);border-color:rgba(25,155,128,.35)}
+.c-cardio{color:var(--ink-2)}
+.c-recovery{color:var(--muted)}
 .starRow{display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;
   border-top:1px solid var(--hair);cursor:pointer}
 .starRow:active{opacity:.65}
@@ -273,6 +299,32 @@ details[open] summary::after{content:"⌄"}
 .banner b{color:inherit}
 .banner div{min-width:0;overflow-wrap:anywhere}
 td.num{overflow-wrap:anywhere}
+
+/* --- Progress: week navigator and the Mon–Sun strip --- */
+.wknav{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.wknav button{flex:0 0 40px;height:40px;border-radius:11px;border:1px solid var(--border);
+  background:var(--surface-2);color:var(--ink);font-size:19px;line-height:1;cursor:pointer}
+.wknav button:disabled{opacity:.3;cursor:default}
+.wknav>div{flex:1;text-align:center}
+.wknav .wkt{font-weight:700;font-size:15.5px;letter-spacing:-.01em}
+.wknav .wks{font-size:12.5px;color:var(--muted);margin-top:1px}
+.dayList{display:flex;flex-direction:column;gap:1px;background:var(--border);
+  border-radius:11px;overflow:hidden}
+.dayRow{display:flex;align-items:center;gap:12px;padding:10px 12px;
+  background:var(--surface-2);cursor:pointer;border-left:3px solid transparent}
+.dayRow.hit{border-left-color:var(--good)}
+.dayRow.miss{border-left-color:var(--critical)}
+.dayRow.fut{opacity:.5}
+.dayRow .dd{flex:0 0 34px;text-align:center;line-height:1.15}
+.dayRow .dd b{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.dayRow .dd span{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+.dayRow .dm{flex:1;min-width:0}
+.dayRow .dl{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dayRow .db{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dayRow.miss .db{color:var(--critical)}
+.dayRow .ds{flex:0 0 auto;color:var(--good);font-size:12px;letter-spacing:-1px}
+.noteBody p{margin:0 0 10px;font-size:14.5px;line-height:1.6}
+.noteBody p:last-child{margin-bottom:0}
 </style>
 </head>
 <body>
@@ -503,31 +555,67 @@ function weekTitle(d){
 /* ============================================================
    DATA
    ============================================================ */
-let DB=Store.get('coach.db',null)||{
-  log:{},          // 'YYYY-MM-DD': {type, done:true, sets:{key:[{w,r}]}, rpe}
-  weights:{},      // 'YYYY-MM-DD': lb
-  bodyfat:{},      // 'YYYY-MM-DD': % from the Body Hub scanner
-  away:[],         // [{from,to,reason}]
-  membership:{ annualCost:3746, myShare:1873, basis:'share', currency:'£', start:'2026-08-24', altMonthly:45, targetPerVisit:15 },
-  visits:[],
-  bonus:{},          // 'YYYY-MM-DD': ['blaze','spa'] — optional extras, never scored against you
-  rewards:null,      // reward ladder — seeded on first run
-  fuel:{},           // 'YYYY-MM-DD': {kcal:true, protein:true} — MyFitnessPal adherence
-  niggles:[],        // [{date, area, level, note, resolved}]
-  adhoc:{},          // 'YYYY-MM-DD': a generated ad-hoc session
-  activities:[],     // [{date, cat, sub, vals, note}] — anything outside the plan
-  settings:{ startWeight:175, goalWeight:159, unitMigrated:true },
-  updatedAt:0
+/* ------------------------------------------------------------
+   THE SHAPE OF THE STORE
+   Every top-level key, and how two copies of it get merged.
+   mergeDB, the backup importer and the boot path all read this,
+   so adding a key here is the only step needed to make it sync
+   and restore correctly. Anything NOT listed is still carried
+   through untouched rather than dropped — a key added by a newer
+   version of the app can never be silently deleted by an older one.
+   ------------------------------------------------------------ */
+const MEMBERSHIP_DEFAULT={annualCost:3746,myShare:1873,basis:'share',currency:'£',
+                          start:'2026-08-24',altMonthly:45,targetPerVisit:15};
+// NOTE: unitMigrated is deliberately NOT defaulted here. Its absence is what
+// tells the kg→lb migration that this is an old store that still needs
+// converting. normalise() stamps it only on a genuinely fresh install.
+const SETTINGS_DEFAULT={startWeight:175,goalWeight:159};
+const SHAPE={
+  log:       {kind:'byDate', of:'entry'},     // 'YYYY-MM-DD': one planned session
+  weights:   {kind:'byDate'},                 // 'YYYY-MM-DD': lb
+  bodyfat:   {kind:'byDate'},                 // 'YYYY-MM-DD': %
+  fuel:      {kind:'byDate'},                 // 'YYYY-MM-DD': {kcal,protein}
+  bonus:     {kind:'byDate', of:'strings'},   // 'YYYY-MM-DD': ['sauna','swim']
+  adhoc:     {kind:'byDate', of:'workouts'},  // 'YYYY-MM-DD': [workout, ...]
+  away:      {kind:'list', id:v=>`${v.from}|${v.to}`},
+  activities:{kind:'list', id:v=>`${v.date}|${v.sub}|${JSON.stringify(v.vals||{})}`},
+  niggles:   {kind:'list', id:v=>`${v.date}|${v.area}`},
+  visits:    {kind:'list', id:v=>`${v.date}|${v.type}`},
+  membership:{kind:'obj',  def:MEMBERSHIP_DEFAULT},
+  settings:  {kind:'obj',  def:SETTINGS_DEFAULT},
+  rewards:   {kind:'newest'},
+  notes:     {kind:'byDate'}                  // Monday of a week: {text, at, by}
 };
+
+// Fill in anything missing and repair old shapes, without touching
+// keys this version does not recognise.
+function normalise(d){
+  const fresh = !d || typeof d!=='object' || !('log' in d);
+  const o={...(d||{})};
+  Object.keys(SHAPE).forEach(k=>{
+    const s=SHAPE[k];
+    if(s.kind==='byDate')     o[k]=o[k]&&typeof o[k]==='object'?o[k]:{};
+    else if(s.kind==='list')  o[k]=Array.isArray(o[k])?o[k]:[];
+    else if(s.kind==='obj')   o[k]=Object.assign({},s.def||{},o[k]||{});
+    else if(o[k]===undefined) o[k]=null;
+  });
+  // adhoc was one session per day before v18; now a list
+  Object.keys(o.adhoc).forEach(d2=>{ if(!Array.isArray(o.adhoc[d2])) o.adhoc[d2]=[o.adhoc[d2]]; });
+  // every ad-hoc workout needs a stable id so two devices can merge it
+  // rather than each keeping its own copy
+  Object.keys(o.adhoc).forEach(d2=>o.adhoc[d2].forEach((w,i)=>{ if(w&&!w.id) w.id=d2+'#'+i; }));
+  // A brand-new install is already in lb, so it must not be run through the
+  // kg→lb conversion. An existing store without the flag genuinely needs it.
+  if(fresh) o.settings.unitMigrated=true;
+  o.updatedAt=o.updatedAt||0;
+  return o;
+}
+
+let DB=normalise(Store.get('coach.db',null));
 const save=()=>{ DB.updatedAt=Date.now(); Store.set('coach.db',DB); if(window.Cloud) Cloud.queue(); };
 
 // One-time migration: body weight used to be stored in kg, now lb.
 // Lifting loads stay in kg and are untouched.
-DB.bodyfat=DB.bodyfat||{}; DB.fuel=DB.fuel||{}; DB.niggles=DB.niggles||[]; DB.adhoc=DB.adhoc||{}; DB.activities=DB.activities||[];
-// Was one ad-hoc session per day; now a list, so more than one can be logged.
-Object.keys(DB.adhoc).forEach(d=>{ if(!Array.isArray(DB.adhoc[d])) DB.adhoc[d]=[DB.adhoc[d]]; }); DB.activities=DB.activities||[];
-// Was one ad-hoc session per day; now a list, so you can log more than one.
-Object.keys(DB.adhoc).forEach(d=>{ if(!Array.isArray(DB.adhoc[d])) DB.adhoc[d]=[DB.adhoc[d]]; });
 if(!DB.rewards) DB.rewards=[
   {days:10,  label:'New gym top',                claimed:false},
   {days:20,  label:'Proper sports massage',      claimed:false},
@@ -671,12 +759,14 @@ function bumpVariant(ds,k,max){
   if(cur>=max) return;
   e.variant[k]=cur+1;
   if(e.sets&&e.sets[k]) delete e.sets[k];   // different movement, different loads
+  if(e.exName) delete e.exName[k];          // and a different name to record
   save(); render();
 }
 function resetVariant(ds,k){
   const e=DB.log[ds]; if(!e||!e.variant) return;
   delete e.variant[k];
   if(e.sets&&e.sets[k]) delete e.sets[k];
+  if(e.exName) delete e.exName[k];
   save(); render();
 }
 window.bumpVariant=bumpVariant; window.resetVariant=resetVariant;
@@ -1175,9 +1265,8 @@ function render(){
   const pre = notStarted();
   document.getElementById('hdrPill').innerHTML =
     pre ? pill(daysToStart()===1?'starting':'soon') : pill(ws.state);
-  const MT={reward:'Reward ladder',membership:'Membership',records:'Personal records',
-            fuel:'Nutrition',review:'Progress review',niggles:'Niggles',random:'Random workout',
-            log:'Log an activity',library:'Library',sync:'Sync details'};
+  const MT={reward:'Reward ladder',membership:'Membership',            fuel:'Nutrition',review:'Progress review',niggles:'Niggles',random:'Random workout',
+            log:'Log an activity',library:'Library',sync:'Sync details',history:'History'};
   const T={today:'Today',week:'This week',progress:'Progress',
            more:MORE?MT[MORE]:'More',plan:'The plan'};
   document.getElementById('hdrTitle').textContent=T[TAB];
@@ -1185,9 +1274,9 @@ function render(){
     TAB==='today' ? new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})
     : pre ? (daysToStart()===1?'Week 1 starts tomorrow':`Week 1 starts in ${daysToStart()} days`)
     : weekTitle(new Date());
-  if(TAB==='more'){ MORE?({reward:vReward,membership:vMembership,records:vRecords,
+  if(TAB==='more'){ MORE?({reward:vReward,membership:vMembership,
       fuel:vFuel,review:vReview,niggles:vNiggles,random:vRandom,log:vLog,
-      library:vLibrary,sync:vSync})[MORE]() : vMore(); }
+      library:vLibrary,sync:vSync,history:vHistory})[MORE]() : vMore(); }
   else ({today:vToday,week:vWeek,progress:vProgress,plan:vPlan})[TAB]();
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===TAB));
 }
@@ -1325,7 +1414,7 @@ function vToday(){
       </details>`;
 
       h+=stretchBlock(warmKind(key));
-      h+=recoveryBlock(ds);
+      h+=recoveryBlock(ds,null);
 
       // session feedback
       h+=`<div class="card"><h3>How was that?</h3>
@@ -1469,6 +1558,20 @@ window.rmExtraEx=i=>{
   }
   save(); render();
 };
+/* The store keys sets by a short code (squat, pull). The display name
+   comes from the programme — which will change when we write the next
+   block. Stamp the name as it was AT THE TIME OF LOGGING so history can
+   never be silently relabelled by a future programme. */
+function stampName(e,ds,k){
+  e.exName=e.exName||{};
+  if(e.exName[k]) return;
+  const prog=PROGRAMME[e.type||SCHEDULE[parse(ds).getDay()]];
+  const x=(prog&&prog.ex||[]).find(y=>y.k===k);
+  if(x){ e.exName[k]=exVariant(x,(e.variant&&e.variant[k])||0).n; return; }
+  const ex=(e.extraEx||[]).find(y=>y.k===k);
+  if(ex) e.exName[k]=ex.n;
+}
+
 window.addSetRow=k=>{
   const ds=curDate();
   const e=DB.log[ds]||(DB.log[ds]={type:SCHEDULE[parse(ds).getDay()],sets:{}});
@@ -1482,6 +1585,7 @@ window.setLog=(k,i,f,v)=>{
   const e=DB.log[ds]||(DB.log[ds]={type:SCHEDULE[parse(ds).getDay()],sets:{}});
   e.sets=e.sets||{}; e.sets[k]=e.sets[k]||[];
   e.sets[k][i]=e.sets[k][i]||{}; e.sets[k][i][f]=v;
+  stampName(e,ds,k);
   save();
 };
 window.toggleDone=()=>{
@@ -1768,7 +1872,164 @@ let OPEN_STARS=null;
 window.toggleStars=ds=>{ OPEN_STARS = OPEN_STARS===ds ? null : ds; render(); };
 
 /* ---------- PROGRESS ---------- */
+/* ============================================================
+   PROGRESS — a week at a time
+   ------------------------------------------------------------
+   Monday to Sunday. Did the week hold together, what did the
+   scale do, what did you do beyond the plan. Long-term trends
+   sit underneath, because they only mean anything across blocks.
+   ============================================================ */
+let PW=null;                                   // Monday of the week being viewed
+const pWeek=()=>PW||weekKey(new Date());
+window.shiftWeek=n=>{
+  const m=iso(addD(parse(pWeek()),n*7));
+  if(m>weekKey(new Date())) return;            // no looking forward
+  PW = m===weekKey(new Date()) ? null : m;
+  window.scrollTo(0,0); render();
+};
+
+// What actually happened on each day of a week.
+function weekRows(mon){
+  const days=[...Array(7)].map((_,i)=>iso(addD(parse(mon),i)));
+  return days.map(ds=>{
+    const e=DB.log[ds]||{}, prog=PROGRAMME[e.type||SCHEDULE[parse(ds).getDay()]];
+    const planned=SCHEDULE[parse(ds).getDay()];
+    const done=!!e.done;
+    const nSets=Object.keys(e.sets||{}).length;
+    const extras=adhocList(ds).filter(w=>w.accepted);
+    const acts=(DB.activities||[]).filter(a=>a.date===ds);
+    const stars=(DB.bonus[ds]||[]).length;
+    const bits=[];
+    if(done) bits.push(e.type==='bball'?'Played':(nSets?`${nSets} exercise${nSets===1?'':'s'}`:'Done'));
+    extras.forEach(w=>bits.push(`${w.focusLabel||'Random'} workout`));
+    acts.forEach(a=>bits.push(a.sub));
+    const label = e.type==='bball'||planned==='bball' ? 'Basketball'
+                : prog ? prog.label
+                : planned==='open' ? 'Open' : '—';
+    const missed = !done && !extras.length && !acts.length
+                 && ['bball','gymA','gymB'].includes(planned)
+                 && ds<todayISO() && !isAway(ds);
+    // bonus extras are shown on the day but never counted as sessions
+    const extraLabels=(DB.bonus[ds]||[]).filter(k=>!['adhoc','activity','extra'].includes(k))
+      .map(k=>(BONUS[k]||{}).label).filter(Boolean);
+    return {ds,label,bits,extraLabels,stars,done,missed,away:isAway(ds),future:ds>todayISO()};
+  });
+}
+
 function vProgress(){
+  const mon=pWeek(), ws=weekStatus(mon);
+  const days=[...Array(7)].map((_,i)=>iso(addD(parse(mon),i)));
+  const isThis=mon===weekKey(new Date());
+  const wn=weekNum(parse(mon));
+  let h='';
+
+  /* ---- week navigator ---- */
+  const span=`${parse(mon).getDate()} ${parse(mon).toLocaleDateString('en-GB',{month:'short'})} – ${parse(days[6]).getDate()} ${parse(days[6]).toLocaleDateString('en-GB',{month:'short'})}`;
+  h+=`<div class="wknav">
+    <button onclick="shiftWeek(-1)" aria-label="Previous week">‹</button>
+    <div><div class="wkt">${wn<1?'Before Week 1':wn<=12?`Week ${wn} of 12`:`Week ${wn}`}</div>
+      <div class="wks">${isThis?'This week':span}</div></div>
+    <button onclick="shiftWeek(1)" ${isThis?'disabled':''} aria-label="Next week">›</button>
+  </div>`;
+
+  /* ---- the four numbers ---- */
+  const wEnd=avg7(days[6]>todayISO()?todayISO():days[6]);
+  const wPrev=avg7(iso(addD(parse(mon),-1)));
+  const dW = (wEnd!=null&&wPrev!=null) ? wEnd-wPrev : null;
+  const stars=bonusCount(days[0],days[6]);
+  const logged=weekRows(mon).reduce((t,r)=>t+(r.done?1:0)+r.bits.length-(r.done?1:0),0);
+  const sessions=weekRows(mon).reduce((t,r)=>t+r.bits.length,0);
+
+  h+=`<div class="card"><div class="row"><h3>The week</h3>${pill(ws.state)}</div>
+    <div class="statRow mt">
+      <div><div class="sv">${ws.state==='prestart'||ws.state==='planned'?'—':`${ws.hit}/${ws.of}`}</div><div class="sl">core sessions</div></div>
+      <div><div class="sv" style="color:${dW==null?'var(--muted)':dW<0?'var(--good)':dW>0?'var(--warning)':'var(--muted)'}">${dW==null?'—':`${dW>0?'+':''}${dW.toFixed(1)}`}</div><div class="sl">lb change</div></div>
+      <div><div class="sv" style="color:${stars?'var(--good)':'var(--muted)'}">${stars}</div><div class="sl">star${stars===1?'':'s'}</div></div>
+      <div><div class="sv">${sessions}</div><div class="sl">things done</div></div>
+    </div>
+    <div class="note">${weekVerdict(ws,dW,stars)}</div>
+  </div>`;
+
+  /* ---- Monday to Sunday ---- */
+  h+=`<div class="card"><h3>Monday to Sunday</h3><div class="dayList mt">`;
+  weekRows(mon).forEach(r=>{
+    const dt=parse(r.ds);
+    const cls=r.missed?'miss':r.bits.length?'hit':r.future?'fut':'';
+    h+=`<div class="dayRow ${cls}" onclick="openDay('${r.ds}')">
+      <div class="dd"><b>${DOW[dt.getDay()]}</b><span>${dt.getDate()}</span></div>
+      <div class="dm"><div class="dl">${r.label}</div>
+        <div class="db">${(()=>{ const all=[...r.bits,...r.extraLabels];
+          return r.away?'Away':all.length?all.join(' · '):r.missed?'Missed':r.future?'To come':'Nothing logged'; })()}</div></div>
+      <div class="ds">${r.stars?'★'.repeat(Math.min(r.stars,3)):''}</div>
+    </div>`;
+  });
+  h+=`</div><div class="note">Tap any day to open it and log something you forgot.</div></div>`;
+
+  /* ---- coach note for this week ---- */
+  h+=noteCard(mon);
+
+  /* ---- long-term, underneath ---- */
+  h+=`<h3 style="margin:22px 0 10px">Overall</h3>`;
+  h+=overallCards();
+  view.innerHTML=h; wireChart();
+}
+
+// A plain-language read on the week — no score inflation, no scolding.
+/* A written review of a week. You paste it in (or I write it from an
+   export) and it stays attached to that week, in the app, for good. */
+function noteCard(mon){
+  const n=(DB.notes||{})[mon];
+  const editing=NOTE_EDIT===mon;
+  if(editing){
+    return `<div class="card"><h3>Coach note</h3>
+      <textarea id="noteBox" rows="10" style="font:inherit;font-size:14px;line-height:1.55;background:var(--surface-2);border:1px solid var(--border);color:var(--ink);border-radius:9px;padding:11px;width:100%;margin-top:10px" placeholder="Paste the write-up here.">${n?n.text.replace(/</g,'&lt;'):''}</textarea>
+      <div class="btnrow mt">
+        <button class="btn primary" onclick="saveNote('${mon}')">Save</button>
+        <button class="btn" onclick="editNote(null)">Cancel</button>
+      </div>
+      ${n?`<button class="btn danger mt" onclick="deleteNote('${mon}')">Delete this note</button>`:''}
+    </div>`;
+  }
+  if(!n) return `<div class="card tight"><div class="row">
+      <div><div style="font-weight:600">Coach note</div>
+      <div class="muted">Nothing written for this week yet</div></div>
+      <button class="btn ghost" style="width:auto;padding:7px 13px" onclick="editNote('${mon}')">Add</button>
+    </div>
+    <div class="note">Export your data from Sync, send it over, and paste the write-up back in here.</div></div>`;
+  return `<div class="card"><div class="row"><h3>Coach note</h3>
+      <button class="btn ghost" style="width:auto;padding:6px 12px;font-size:12.5px" onclick="editNote('${mon}')">Edit</button></div>
+    <div class="noteBody mt">${n.text.replace(/</g,'&lt;').split(/\n{2,}/).map(p=>`<p>${p.replace(/\n/g,'<br>')}</p>`).join('')}</div>
+    <div class="muted" style="margin-top:10px">Written ${fmtD(n.at)}</div>
+  </div>`;
+}
+let NOTE_EDIT=null;
+window.editNote=m=>{ NOTE_EDIT=m; render(); };
+window.saveNote=m=>{
+  const t=(document.getElementById('noteBox').value||'').trim();
+  DB.notes=DB.notes||{};
+  if(t) DB.notes[m]={text:t,at:todayISO(),by:'coach'}; else delete DB.notes[m];
+  NOTE_EDIT=null; save(); render();
+};
+window.deleteNote=m=>{ if(!confirm('Delete this note?')) return;
+  delete DB.notes[m]; NOTE_EDIT=null; save(); render(); };
+
+function weekVerdict(ws,dW,stars){
+  if(ws.state==='setup')     return 'Nothing scheduled yet.';
+  if(ws.state==='prestart')  return 'Before the programme started — nothing counted yet.';
+  if(ws.state==='planned')   return 'Still to come.';
+  if(ws.state==='away')      return 'Flagged as away. Excused in full — this week does not count against you.';
+  const parts=[];
+  if(ws.complete) parts.push(ws.state==='ontrack'
+    ? `${ws.hit} of ${ws.of} core sessions — that is a good week.`
+    : `${ws.hit} of ${ws.of} core sessions. Two misses is the line, so this one counts against you.`);
+  else parts.push(`${ws.hit} of ${ws.of} so far.`);
+  if(dW!=null&&Math.abs(dW)>=0.1) parts.push(`Weight ${dW<0?'down':'up'} ${Math.abs(dW).toFixed(1)}lb on the 7-day average.`);
+  if(stars) parts.push(`${stars} extra${stars===1?'':'s'} on top.`);
+  parts.push('One week is noise — the trend below is what matters.');
+  return parts.join(' ');
+}
+
+function overallCards(){
   const now=avg7(todayISO());
   let start=DB.settings.startWeight, goal=DB.settings.goalWeight;
   let h='';
@@ -1787,7 +2048,7 @@ function vProgress(){
         <div><label class="f">Goal lb</label><input inputmode="decimal" value="${goal??''}" onchange="setCfg('goalWeight',this.value)"></div>
       </div></div>`;
     h+=`<div class="card">${weightChart()}</div>`;
-    view.innerHTML=h; wireChart(); return;
+    return h;
   }
   const cur=now??start;
   const pct=Math.max(0,Math.min(100,((start-cur)/(start-goal))*100));
@@ -1879,7 +2140,7 @@ function vProgress(){
       <div class="note">Only worth changing if the original figure was wrong — not to reset progress after a bad week.</div>
     </details></div>`;
 
-  view.innerHTML=h; wireChart();
+  return h;
 }
 window.setCfg=(k,v)=>{const n=parseFloat(v);if(!isNaN(n)){DB.settings[k]=n;save();render();}};
 
@@ -2047,6 +2308,41 @@ window.addVisit=t=>{
 };
 window.rmVisit=i=>{ DB.visits.splice(i,1); save(); render(); };
 window.rmAway=i=>{DB.away.splice(i,1);save();render();};
+/* ------------------------------------------------------------
+   RECORD CENSUS — a straight count of what is actually held, so
+   you can sense-check that nothing has gone missing.
+   ------------------------------------------------------------ */
+function census(d){
+  d=d||DB;
+  const sets=Object.values(d.log||{}).reduce((t,e)=>t+Object.keys(e&&e.sets||{}).length,0)
+           + Object.values(d.adhoc||{}).flat().reduce((t,w)=>t+Object.keys(w&&w.sets||{}).length,0);
+  const dates=[
+    ...Object.keys(d.log||{}), ...Object.keys(d.weights||{}), ...Object.keys(d.bodyfat||{}),
+    ...Object.keys(d.fuel||{}), ...Object.keys(d.bonus||{}), ...Object.keys(d.adhoc||{}),
+    ...(d.activities||[]).map(a=>a.date), ...(d.niggles||[]).map(n=>n.date),
+    ...(d.visits||[]).map(v=>v.date)
+  ].filter(Boolean).sort();
+  return {
+    rows:[
+      ['Session days',        Object.keys(d.log||{}).length],
+      ['Exercises with sets', sets],
+      ['Random / custom workouts', Object.values(d.adhoc||{}).flat().length],
+      ['Activities logged',   (d.activities||[]).length],
+      ['Morning weights',     Object.keys(d.weights||{}).length],
+      ['Body Hub scans',      Object.keys(d.bodyfat||{}).length],
+      ['Nutrition days',      Object.keys(d.fuel||{}).length],
+      ['Bonus extras',        Object.values(d.bonus||{}).flat().length],
+      ['Club visits',         (d.visits||[]).length],
+      ['Niggles',             (d.niggles||[]).length],
+      ['Coach notes',         Object.keys(d.notes||{}).length]
+    ],
+    first:dates[0]||null, last:dates[dates.length-1]||null,
+    bytes:JSON.stringify(d).length
+  };
+}
+const censusLine=d=>{ const c=census(d);
+  return `${Object.keys(d.log||{}).length} session days, ${Object.keys(d.weights||{}).length} weights, ${Object.keys(d.bodyfat||{}).length} scans`; };
+
 window.importData=el=>{
   const f=el.files&&el.files[0]; if(!f) return;
   const r=new FileReader();
@@ -2054,17 +2350,12 @@ window.importData=el=>{
     try{
       const d=JSON.parse(r.result);
       if(!d||typeof d!=='object'||!('log' in d)) throw new Error('Not a Coach backup file');
-      DB={log:d.log||{},weights:d.weights||{},away:d.away||[],
-          membership:Object.assign({annualCost:3746,myShare:1873,basis:'share',currency:'£',start:'2026-08-24',altMonthly:45,targetPerVisit:15},d.membership||{}),
-          visits:d.visits||[],
-          bonus:d.bonus||{},
-          rewards:d.rewards||null,
-          fuel:d.fuel||{},
-          niggles:d.niggles||[],
-          adhoc:d.adhoc||{},
-          activities:d.activities||[],
-          settings:Object.assign({startWeight:175,goalWeight:159,unitMigrated:true},d.settings||{})};
-      save(); render(); alert('Backup restored.');
+      // Rebuild from the FILE, not from a fixed list of keys. Anything the
+      // backup carries survives the restore, including keys written by a
+      // newer version of the app than the one doing the restoring.
+      DB=normalise(d);
+      save(); render();
+      alert('Backup restored — '+censusLine(DB)+'.');
     }catch(e){ alert('Could not read that file: '+e.message); }
     el.value='';
   };
@@ -2151,7 +2442,7 @@ function vPlan(){
    Entirely optional. With no config the app runs exactly as
    before, storing everything locally on the device.
    ============================================================ */
-const BUILD='2026-08-24 · v31';   // shown on the Sync tab — check this to confirm an update landed
+const BUILD='2026-08-24 · v35';   // shown on the Sync tab — check this to confirm an update landed
 const FBV='https://www.gstatic.com/firebasejs/10.12.5';
 
 /* Firebase config lives in its own file — config.js — which this file never
@@ -2161,39 +2452,74 @@ const FBV='https://www.gstatic.com/firebasejs/10.12.5';
 const FIREBASE_CONFIG = (typeof window!=='undefined' && window.FIREBASE_CONFIG) || null;
 
 // Union-merge two DBs so signing in on a second device never destroys data.
+/* ------------------------------------------------------------
+   MERGING TWO COPIES OF THE STORE
+   Signing in on a second device, or coming back online after
+   editing offline, means two versions of the same data. The rule
+   is union, never replace: a record that exists on either side
+   survives. Newer wins only where the same field on the same day
+   genuinely conflicts.
+   ------------------------------------------------------------ */
+function mergeList(N,O,id){
+  const seen=new Set(), out=[];
+  [...(N||[]),...(O||[])].forEach(v=>{ if(!v) return;
+    let k; try{k=id(v);}catch(e){k=JSON.stringify(v);}
+    if(!seen.has(k)){seen.add(k);out.push(v);} });
+  return out;
+}
+// Merge one day's planned session: union the sets rather than letting
+// the newer device's copy of the day replace the other's outright.
+function mergeEntry(n,o){
+  const out={...o,...n};
+  out.sets   ={...(o.sets||{}),   ...(n.sets||{})};
+  out.variant={...(o.variant||{}),...(n.variant||{})};
+  out.exName ={...(o.exName||{}), ...(n.exName||{})};
+  const ex=[...(n.extraEx||[]),...(o.extraEx||[])];
+  out.extraEx=ex.filter((x,i)=>ex.findIndex(y=>y.k===x.k)===i);
+  if(!out.extraEx.length) delete out.extraEx;
+  return out;
+}
+function mergeWorkouts(n,o){
+  const byId=new Map();
+  (o||[]).forEach(w=>w&&byId.set(w.id||JSON.stringify(w),w));
+  (n||[]).forEach(w=>{ if(!w) return;
+    const k=w.id||JSON.stringify(w), prev=byId.get(k);
+    byId.set(k, prev?{...prev,...w,sets:{...(prev.sets||{}),...(w.sets||{})}}:w); });
+  return [...byId.values()];
+}
+function mergeByDate(N,O,of){
+  const out={};
+  new Set([...Object.keys(O||{}),...Object.keys(N||{})]).forEach(d=>{
+    const n=(N||{})[d], o=(O||{})[d];
+    if(n===undefined){ out[d]=o; return; }
+    if(o===undefined){ out[d]=n; return; }
+    if(of==='entry')         out[d]=mergeEntry(n,o);
+    else if(of==='workouts') out[d]=mergeWorkouts(n,o);
+    else if(of==='strings')  out[d]=[...new Set([...(o||[]),...(n||[])])];
+    else                     out[d]=n;            // a single reading — newer wins
+  });
+  return out;
+}
 function mergeDB(a,b){
-  const newer = (b.updatedAt||0) > (a.updatedAt||0) ? b : a;
-  const older = newer===a ? b : a;
-  const mergeMap=(x={},y={})=>{const o={...y,...x};return o;};   // newer wins per key
-  return {
-    log:      mergeMap(newer.log,older.log),
-    weights:  mergeMap(newer.weights,older.weights),
-    bodyfat:  mergeMap(newer.bodyfat,older.bodyfat),
-    away:     (()=>{const seen=new Set(),out=[];
-                 [...(newer.away||[]),...(older.away||[])].forEach(v=>{
-                   const k=`${v.from}|${v.to}`; if(!seen.has(k)){seen.add(k);out.push(v);}});
-                 return out;})(),
-    membership: Object.assign({},older.membership||{},newer.membership||{}),
-    bonus:    mergeMap(newer.bonus,older.bonus),
-    fuel:     mergeMap(newer.fuel,older.fuel),
-    adhoc:    mergeMap(newer.adhoc,older.adhoc),
-    activities:(()=>{const seen=new Set(),out=[];
-                 [...(newer.activities||[]),...(older.activities||[])].forEach(v=>{
-                   const k=`${v.date}|${v.sub}|${JSON.stringify(v.vals||{})}`;
-                   if(!seen.has(k)){seen.add(k);out.push(v);}});
-                 return out;})(),
-    rewards:  newer.rewards||older.rewards||null,
-    niggles:  (()=>{const seen=new Set(),out=[];
-                 [...(newer.niggles||[]),...(older.niggles||[])].forEach(v=>{
-                   const k=`${v.date}|${v.area}`; if(!seen.has(k)){seen.add(k);out.push(v);}});
-                 return out;})(),
-    visits:   (()=>{const seen=new Set(),out=[];
-                 [...(newer.visits||[]),...(older.visits||[])].forEach(v=>{
-                   const k=`${v.date}|${v.type}`; if(!seen.has(k)){seen.add(k);out.push(v);}});
-                 return out;})(),
-    settings: Object.assign({},older.settings||{},newer.settings||{}),
-    updatedAt: Math.max(a.updatedAt||0,b.updatedAt||0)
-  };
+  const newer=(b.updatedAt||0)>(a.updatedAt||0)?b:a, older=newer===a?b:a;
+  const out={};
+  // Start by carrying EVERY key through, newer first. A key written by a
+  // future version of the app is preserved even though nothing here knows
+  // what it is — the alternative is silently deleting the user's data.
+  Object.keys({...older,...newer}).forEach(k=>{
+    if(k==='updatedAt') return;
+    out[k] = newer[k]!==undefined ? newer[k] : older[k];
+  });
+  // Then merge properly the keys we do understand.
+  Object.keys(SHAPE).forEach(k=>{
+    const sp=SHAPE[k], N=newer[k], O=older[k];
+    if(sp.kind==='byDate')     out[k]=mergeByDate(N,O,sp.of);
+    else if(sp.kind==='list')  out[k]=mergeList(N,O,sp.id);
+    else if(sp.kind==='obj')   out[k]=Object.assign({},sp.def||{},O||{},N||{});
+    else                       out[k]=N||O||null;
+  });
+  out.updatedAt=Math.max(a.updatedAt||0,b.updatedAt||0);
+  return out;
 }
 
 const Cloud=(()=>{
@@ -2306,7 +2632,7 @@ const MORE_ITEMS=[
   {k:'random',     t:'Random workout',   d:'No plan today? Build one from what is here'},
   {k:'log',        t:'Log an activity',  d:'Runs, swims, classes, sauna — anything extra'},
   {k:'reward',     t:'Reward ladder',    d:'Earn something real for staying consistent'},
-  {k:'records',    t:'Personal records', d:'Your best set on every lift'},
+  {k:'history',    t:'History',           d:'Every session, set, run and swim you have logged — and your best lifts'},
   {k:'review',     t:'Progress review',  d:'What your numbers say to change'},
   {k:'fuel',       t:'Nutrition',        d:'Daily calorie and protein adherence'},
   {k:'niggles',    t:'Niggles',          d:'Log aches early, spot patterns'},
@@ -2382,8 +2708,8 @@ function vReward(){
 window.setReward=(i,v)=>{ DB.rewards[i].label=v; save(); };
 window.claimReward=i=>{ DB.rewards[i].claimed=true; save(); render(); };
 
-/* ---------- 2. PERSONAL RECORDS ---------- */
-function vRecords(){
+/* ---------- 2. PERSONAL RECORDS (now shown inside History) ---------- */
+function recordCards(){
   const names={squat:'Back Squat',rdl:'Romanian Deadlift',chest:'Chest Press',pull:'Lat Pulldown',
                ohp:'Shoulder Press',row:'Seated Row',push2:'Dip / second push',calf:'Calf Raise',
                pallof:'Pallof Press',carry:'Carry'};
@@ -2398,12 +2724,8 @@ function vRecords(){
     });
     if(best) recs.push({k,n:names[k],...best});
   });
-  let h=backBar();
-  if(!recs.length){
-    h+=`<div class="card"><h3>No records yet</h3>
-      <div class="muted mt">Log the weight and reps on a set and your bests appear here automatically.</div></div>`;
-    view.innerHTML=h; return;
-  }
+  let h='';
+  if(!recs.length) return '';
   h+=`<div class="card"><h3>Best set on each lift</h3>
     <table class="mt"><thead><tr><th>Lift</th><th class="num">Best</th><th class="num">When</th></tr></thead><tbody>
     ${recs.sort((a,b)=>b.w-a.w).map(r=>`<tr><td>${r.n}</td>
@@ -2421,8 +2743,286 @@ function vRecords(){
       <div class="note">An estimate from a rep-max formula, not a number to go and test. It is useful for seeing the trend, and for setting working weights at roughly 75–85% of it.</div>
     </div>`;
   }
+  return h;
+}
+
+
+
+/* ============================================================
+   MAGIC SUGGESTION
+   ------------------------------------------------------------
+   Reads your history for that movement, what you have trained
+   in the last 48h, and any open niggles, then proposes a load
+   and rep target — with the reasoning, so you can disagree.
+   ============================================================ */
+const NIGGLE_AREA={
+  'Knee':['Legs'],'Hip':['Legs'],'Hamstring':['Legs'],'Calf':['Legs'],'Ankle':['Legs'],
+  'Lower back':['Legs','Pull'],'Shoulder':['Push','Pull'],'Elbow':['Push','Arms'],
+  'Wrist':['Push','Arms'],'Other':[]
+};
+function recentLoad(area,ds){
+  // did the same pattern get hit in the previous 2 days?
+  let hits=0;
+  for(let i=1;i<=2;i++){
+    const d=iso(addD(parse(ds),-i));
+    const e=DB.log[d];
+    Object.keys((e&&e.sets)||{}).forEach(k=>{ if((LIB_AREA[k]||'')===area) hits++; });
+    adhocList(d).forEach(w=>(w.ex||[]).forEach(x=>{ if(LIB_AREA[x.n]===area) hits++; }));
+  }
+  return hits;
+}
+// A movement can be stored under the programme's short key (squat), its slug
+// (back-squat) from a random workout, or x_<slug> when added as an extra.
+const NAME_KEYS=(()=>{
+  const m={};
+  ['gymA','gymB'].forEach(g=>(PROGRAMME_M[g].ex||[]).forEach(x=>{
+    m[x.n]=m[x.n]||[]; m[x.n].push(x.k);
+    (x.alts||[]).forEach(a=>{ m[a.n]=m[a.n]||[]; m[a.n].push(x.k); });
+  }));
+  return m;
+})();
+function keysFor(name){
+  const out=new Set(NAME_KEYS[name]||[]);
+  out.add(slug(name)); out.add('x_'+slug(name));
+  return [...out];
+}
+// What movement was actually recorded under this key on this day?
+function storedName(e,k){
+  for(const g of ['gymA','gymB']){
+    const x=(PROGRAMME_M[g].ex||[]).find(z=>z.k===k);
+    if(x) return exVariant(x,(e.variant&&e.variant[k])||0).n;
+  }
+  const ex=(e.extraEx||[]).find(z=>z.k===k);
+  return ex?ex.n:null;
+}
+function magicHint(name,ds){
+  const area=LIB_AREA[name]||'Mobility';
+  const ks=keysFor(name);
+  const nig=(DB.niggles||[]).filter(n=>!n.resolved&&(NIGGLE_AREA[n.area]||[]).includes(area));
+  const worst=nig.reduce((m,n)=>Math.max(m,n.level),0);
+
+  // Most recent time THIS movement was done — not just this movement pattern.
+  let best=null;
+  Object.keys(DB.log).filter(d=>d<=ds).sort().reverse().some(d=>{
+    const e=DB.log[d];
+    const hit=Object.keys(e.sets||{}).find(key=>ks.includes(key)&&storedName(e,key)===name);
+    if(hit){ const sum=setSummary(e.sets[hit]); if(sum&&sum.top!=null){ best={top:sum.top,reps:sum.reps,rpe:e.rpe,d}; return true; } }
+    return false;
+  });
+  if(!best){
+    Object.keys(DB.adhoc||{}).filter(d=>d<=ds).sort().reverse().some(d=>
+      adhocList(d).some(w=>{
+        const x=(w.ex||[]).find(z=>z.n===name); if(!x) return false;
+        const sum=setSummary((w.sets||{})[x.k]);
+        if(sum&&sum.top!=null){ best={top:sum.top,reps:sum.reps,rpe:w.rpe,d}; return true; }
+        return false;
+      }));
+  }
+
+  const rec=recentLoad(area,ds);
+  let reps=best&&best.reps?best.reps:'8–12';
+
+  if(!best){
+    const why=[];
+    if(worst>=3) why.push(`a level ${worst} ${nig[0].area.toLowerCase()} niggle means go very light here, or skip it`);
+    else if(worst===2) why.push(`ease off — ${nig[0].area.toLowerCase()} niggle`);
+    if(rec>=3) why.push(`${area.toLowerCase()} was trained in the last 48h`);
+    return {text:`No history for this yet — start light, find a weight you control for ${reps} reps, and log it.${why.length?' Also: '+why.join('; ')+'.':''}`,w:null,reps};
+  }
+
+  // base progression from last time
+  let base, lead;
+  if(best.rpe>=5){ base=Math.round(best.top*0.9*2)/2; lead=`last one was maximal at ${best.top}kg, so back off`; }
+  else if(best.rpe===4){ base=best.top; lead=`last one was hard at ${best.top}kg, so hold`; }
+  else { base=best.top+(BIG_LEG.includes(name)?5:2.5); lead=`${best.top}kg last time, so go up`; }
+
+  // then adjust for how you are actually feeling
+  let w=base; const adj=[];
+  if(worst>=3){ w=Math.round(base*0.8*2)/2; reps='12–15';
+    adj.push(`cut back for a level ${worst} ${nig[0].area.toLowerCase()} niggle — light or skip`); }
+  else if(worst===2){ w=Math.round(base*0.9*2)/2;
+    adj.push(`eased off for a ${nig[0].area.toLowerCase()} niggle`); }
+  if(rec>=3){ if(!adj.length) w=Math.round(base*0.95*2)/2;
+    adj.push(`${area.toLowerCase()} already trained in the last 48h`); }
+
+  const when=fmtD(best.d).replace(/^\w+, /,'');
+  const text = adj.length
+    ? `${w}kg × ${reps} — ${lead} to ${base}kg, but ${adj.join(' and ')} (${when})`
+    : `${w}kg × ${reps} — ${lead} (${when})`;
+  return {text,w,reps};
+}
+window.showMagic=(name,i)=>{
+  const el=document.getElementById('magic'+i); if(!el) return;
+  const m=magicHint(name,curDate());
+  el.innerHTML=`<div class="magicBox">${I.star}<div>${m.text}</div></div>`;
+};
+
+/* ============================================================
+   HISTORY — every rep, every mile, one table
+   ------------------------------------------------------------
+   Gym sets and cardio do not share units, so instead of forcing
+   them into the same columns the table uses three neutral value
+   columns and labels the units per row.
+   ============================================================ */
+const CAT_ORDER=['Gym','Basketball','Class','Sport','Cardio','Recovery','Other'];
+function catOf(sub,cat){
+  if(cat==='Class') return 'Class';
+  if(cat==='Sport') return 'Sport';
+  if(cat==='Recovery') return 'Recovery';
+  if(cat==='Cardio') return 'Cardio';
+  return 'Other';
+}
+function setSummary(sets){
+  const done=(sets||[]).filter(v=>v&&(v.w||v.r));
+  if(!done.length) return null;
+  const ws=done.map(v=>parseFloat(v.w)).filter(n=>!isNaN(n));
+  const rs=done.map(v=>parseInt(v.r)).filter(n=>!isNaN(n));
+  const top=ws.length?Math.max(...ws):null;
+  const vol=done.reduce((t,v)=>t+((parseFloat(v.w)||0)*(parseInt(v.r)||0)),0);
+  return {sets:done.length,top,reps:rs.length?(rs.every(r=>r===rs[0])?String(rs[0]):`${Math.min(...rs)}–${Math.max(...rs)}`):null,vol};
+}
+// key -> readable name, across every session in the programme. Used as a
+// fallback when a set was logged under a session that no longer lists that key.
+const KEY_NAME=(()=>{
+  const m={};
+  Object.keys(PROGRAMME_M||{}).forEach(g=>((PROGRAMME_M[g]||{}).ex||[]).forEach(x=>{ m[x.k]=m[x.k]||x.n; }));
+  Object.assign(m,{squat:'Back Squat',rdl:'Romanian Deadlift',chest:'Chest Press',pull:'Lat Pulldown',
+    ohp:'Shoulder Press',row:'Seated Row',push2:'Dip / second push',calf:'Calf Raise',
+    pallof:'Pallof Press',carry:'Suitcase Lunge'});
+  return m;
+})();
+const plural=(n,w)=>`${n} ${w}${n===1?'':'s'}`;
+const keyName=k=>KEY_NAME[k]||String(k).replace(/^x_/,'').replace(/-/g,' ')
+  .replace(/\b\w/g,c=>c.toUpperCase());
+
+// One flat, sortable list of everything ever logged.
+function historyRows(){
+  const out=[];
+  // planned sessions
+  Object.keys(DB.log).forEach(d=>{
+    const e=DB.log[d]; if(!e) return;
+    const prog=PROGRAMME[e.type];
+    // One summary row per session, whatever the type — this is where the
+    // difficulty, how you felt and the recovery you took actually land.
+    const logged=e.done||Object.keys(e.sets||{}).length||e.rpe||e.mood||e.recovery!=null;
+    if(logged&&e.type!=='rest'&&e.type!=='open'){
+      const label=e.type==='bball'?'Basketball':(prog?prog.label:'Session');
+      out.push({d,cat:e.type==='bball'?'Basketball':'Gym',name:label,
+        v1:'—', v2:e.type==='bball'?'2 h':(e.recovery!=null?`${e.recovery} min recovery`:'—'),
+        v3:e.rpe?DIFF_LABEL[e.rpe-1]:'—',
+        note:['session summary',e.mood?`felt ${MOOD_LABEL[e.mood-1]}`:''].filter(Boolean).join(' · ')});
+    }
+    const named={};
+    (prog&&prog.ex||[]).forEach(x=>{ const vi=(e.variant&&e.variant[x.k])||0; named[x.k]=exVariant(x,vi).n; });
+    (e.extraEx||[]).forEach(x=>{ named[x.k]=x.n+' (extra)'; });
+    Object.keys(e.sets||{}).forEach(k=>{
+      const sum=setSummary(e.sets[k]); if(!sum) return;
+      out.push({d,cat:'Gym',name:(e.exName&&e.exName[k])||named[k]||keyName(k),
+        v1:sum.top!=null?`${sum.top} kg`:'—', v2:sum.reps?`${sum.reps} reps`:'—', v3:plural(sum.sets,'set'),
+        note:sum.vol?`${Math.round(sum.vol)} kg volume`:'', session:prog?prog.label:''});
+    });
+  });
+  // random workouts
+  Object.keys(DB.adhoc||{}).forEach(d=>{
+    adhocList(d).forEach(w=>{
+      if(!w.accepted) return;
+      out.push({d,cat:'Gym',name:`${w.focusLabel||'Random'} workout`,
+        v1:'—', v2:w.recovery!=null?`${w.recovery} min recovery`:(w.mins?`${w.mins} min`:'—'),
+        v3:w.rpe?DIFF_LABEL[w.rpe-1]:'—',
+        note:['session summary',w.mood?`felt ${MOOD_LABEL[w.mood-1]}`:''].filter(Boolean).join(' · ')});
+      (w.ex||[]).forEach(x=>{
+        const sum=setSummary((w.sets||{})[x.k]);
+        out.push({d,cat:'Gym',name:x.n,
+          v1:sum&&sum.top!=null?`${sum.top} kg`:'—',
+          v2:sum&&sum.reps?`${sum.reps} reps`:'—',
+          v3:sum?plural(sum.sets,'set'):'—',
+          note:`${w.focusLabel||'Random'} workout`, session:'Random workout'});
+      });
+    });
+  });
+  // logged activities
+  (DB.activities||[]).forEach(a=>{
+    const v=a.vals||{};
+    const dist=v.dist?`${v.dist} km`:(v.pace?`${v.pace} /km`:'—');
+    const time=v.time?`${v.time} min`:'—';
+    const cal=v.cal?`${v.cal} kcal`:'—';
+    out.push({d:a.date,cat:catOf(a.sub,a.cat),name:a.sub,v1:dist,v2:time,v3:cal,note:a.note||''});
+  });
+  // bonus extras with nothing else recorded
+  Object.keys(DB.bonus||{}).forEach(d=>{
+    (DB.bonus[d]||[]).forEach(k=>{
+      if(['adhoc','activity','extra'].includes(k)) return;
+      const b=BONUS[k]; if(!b) return;
+      const cat=['sauna','plunge','hottub','massage'].includes(k)?'Recovery'
+              :['blaze','yoga'].includes(k)?'Class'
+              :k==='racquet'?'Sport':k==='run'?'Cardio':k==='swim'?'Cardio':'Other';
+      out.push({d,cat,name:b.label,v1:'—',v2:'—',v3:'—',note:'bonus extra'});
+    });
+  });
+  return out.sort((a,b)=> a.d<b.d?1 : a.d>b.d?-1 : 0);   // newest first
+}
+
+function vHistory(){
+  const fCat=Store.get('coach.hCat','All');
+  const fRange=Store.get('coach.hRange','90');
+  const q=(Store.get('coach.hQ','')||'').toLowerCase();
+  let rows=historyRows();
+  const total=rows.length;
+  if(fRange!=='all'){
+    const from=iso(addD(new Date(),-parseInt(fRange)));
+    rows=rows.filter(r=>r.d>=from);
+  }
+  if(fCat!=='All') rows=rows.filter(r=>r.cat===fCat);
+  if(q) rows=rows.filter(r=>r.name.toLowerCase().includes(q)||(r.note||'').toLowerCase().includes(q));
+
+  const cats=['All',...CAT_ORDER.filter(c=>historyRows().some(r=>r.cat===c))];
+  let h=backBar();
+
+  // headline numbers — the "look what I've done" bit
+  const days=new Set(rows.map(r=>r.d)).size;
+  const vol=rows.reduce((t,r)=>{const m=/(\d+(?:\.\d+)?) kg volume/.exec(r.note||'');return t+(m?parseFloat(m[1]):0);},0);
+  const km=rows.reduce((t,r)=>{const m=/^(\d+(?:\.\d+)?) km/.exec(r.v1||'');return t+(m?parseFloat(m[1]):0);},0);
+  h+=`<div class="card"><h3>What you have done</h3>
+    <div class="statRow mt">
+      <div><div class="sv">${rows.length}</div><div class="sl">entries</div></div>
+      <div><div class="sv">${days}</div><div class="sl">active days</div></div>
+      <div><div class="sv">${vol?Math.round(vol/1000)+'t':'—'}</div><div class="sl">lifted</div></div>
+      <div><div class="sv">${km?km.toFixed(1):'—'}</div><div class="sl">km</div></div>
+    </div>
+    <div class="note">Everything logged, newest first. Tonnage is weight × reps added up — a blunt measure, but it only goes one way.</div>
+  </div>`;
+
+  h+=`<div class="card">
+    <input id="hQ" placeholder="Search exercises, activities…" value="${q}" oninput="hSearch(this.value)">
+    <div class="chips mt">${cats.map(c=>`<button class="chip${c===fCat?' on':''}" onclick="libSet('hCat','${c}')">${c}</button>`).join('')}</div>
+    <div class="chips" style="margin-top:6px">${[['30','30 days'],['90','90 days'],['365','1 year'],['all','All time']]
+      .map(([k,l])=>`<button class="chip${k===fRange?' on':''}" onclick="libSet('hRange','${k}')">${l}</button>`).join('')}</div>
+    <div class="muted mt">${rows.length} of ${total}</div>
+  </div>`;
+
+  if(!rows.length){
+    h+=`<div class="card"><div class="muted">Nothing matches. Try a wider date range or clear a filter.</div></div>`;
+    h+=recordCards();
+    view.innerHTML=h; return;
+  }
+
+  h+=`<div class="tblWrap"><table class="hist">
+    <thead><tr><th>Date</th><th>Type</th><th>What</th><th class="num">Load</th><th class="num">Reps / time</th><th class="num">Sets / kcal</th></tr></thead>
+    <tbody>${rows.slice(0,300).map(r=>`<tr>
+      <td class="dt">${fmtD(r.d).replace(/^\w+, /,'')}</td>
+      <td><span class="catChip c-${r.cat.toLowerCase()}">${r.cat}</span></td>
+      <td><div class="hn">${r.name}</div>${r.note?`<div class="hnote">${r.note}</div>`:''}</td>
+      <td class="num">${r.v1}</td><td class="num">${r.v2}</td><td class="num">${r.v3}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+  if(rows.length>300) h+=`<div class="muted" style="margin-top:8px">Showing the most recent 300 of ${rows.length}. Narrow the range to see further back.</div>`;
+  h+=`<div class="muted mt">Scroll the table sideways for the number columns.</div>`;
+  h+=recordCards();
   view.innerHTML=h;
 }
+let HQT=null;
+window.hSearch=v=>{ clearTimeout(HQT); HQT=setTimeout(()=>{ Store.set('coach.hQ',v); render();
+  const el=document.getElementById('hQ'); if(el){el.focus();el.setSelectionRange(v.length,v.length);} },250); };
 
 /* ---------- 3. PROGRESS REVIEW ---------- */
 function vReview(){
@@ -2702,7 +3302,7 @@ function vRandom(){
     </div>${done?pill('bonus'):''}</div>
     <div class="note">${w.rpeNote}</div></div>`;
 
-    const wk = w.focus==='legs'?'lower' : ['push','pull','upper','arms'].includes(w.focus)?'upper' : 'general';
+    const wk = w.custom?'general' : w.focus==='legs'?'lower' : ['push','pull','upper','arms'].includes(w.focus)?'upper' : 'general';
     h+=warmupBlock(wk);
     h+=`<h3 style="margin:0 0 8px">Log your sets</h3>`;
     w.ex.forEach(x=>{
@@ -2715,7 +3315,7 @@ function vRandom(){
         <div class="setHead"><div>Set</div><div>Weight (kg)</div><div>Reps</div></div>
         ${Array.from({length:Math.max(INTENSITY[w.intensity].sets,sets.length)}).map((_,n)=>`<div class="setrow">
           <div class="n">${n+1}</div>
-          <input inputmode="decimal" placeholder="—" value="${sets[n]?.w??''}" onchange="adhocSet('${x.k}',${n},'w',this.value)">
+          <input inputmode="decimal" placeholder="${x.hw??'—'}" value="${sets[n]?.w??''}" onchange="adhocSet('${x.k}',${n},'w',this.value)">
           <input inputmode="numeric" placeholder="${INTENSITY[w.intensity].reps}" value="${sets[n]?.r??''}" onchange="adhocSet('${x.k}',${n},'r',this.value)">
         </div>`).join('')}
         <button class="addSet" onclick="adhocAddSet('${x.k}')">+ Add a set</button>
@@ -2723,6 +3323,7 @@ function vRandom(){
       </div>`;
     });
     h+=stretchBlock(wk);
+    h+=recoveryBlock(ds,i);
     h+=`<div class="card"><h3>How was that?</h3>
       <div class="sec mt" style="margin-bottom:2px">Difficulty</div>${adhocScale('rpe','diff')}
       <div class="sec" style="margin-top:14px;margin-bottom:2px">How you felt</div>${adhocScale('mood','mood')}
@@ -2749,6 +3350,40 @@ function vRandom(){
     view.innerHTML=h; return;
   }
 
+  // ---- build your own ----
+  if(BUILD_MODE){
+    const picked=CUSTOM_EX;
+    h+=`<button class="btn ghost" style="margin-bottom:12px" onclick="setBuildMode(false)">‹ Back</button>`;
+    h+=`<div class="card"><h3>Build your own</h3>
+      <div class="sec mt">Full-body warm-up and stretches come as standard. Add whatever you fancy doing.</div>
+      <div class="mt"><label class="f">Add an exercise</label>
+        <select id="cPick">${Object.keys(GUIDE).filter(n=>LIB_TYPE[n]==='Exercise').sort()
+          .map(n=>`<option>${n}</option>`).join('')}</select></div>
+      <button class="btn mt" onclick="addCustom()">Add</button>
+    </div>`;
+    if(picked.length){
+      h+=`<h3 style="margin-bottom:8px">${picked.length} exercise${picked.length===1?'':'s'}</h3>`;
+      picked.forEach((n,i)=>{
+        h+=`<div class="card tight">
+          <div class="row" style="align-items:flex-start">
+            <div style="display:flex;gap:10px;align-items:center;flex:1;min-width:0">
+              ${poseIcon(n)}
+              <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14.5px">${n}</div>
+              <div class="muted">${LIB_AREA[n]||''}</div></div>
+            </div>
+            <button class="magicBtn" onclick="showMagic('${n.replace(/'/g,"\\'")}',${i})" aria-label="Suggest weight">${I.star}</button>
+            <button class="btn danger" style="width:auto;padding:5px 10px;font-size:12.5px" onclick="rmCustom(${i})">✕</button>
+          </div>
+          <div id="magic${i}"></div>
+        </div>`;
+      });
+      h+=`<button class="btn primary mt" onclick="startCustom()">Start this workout</button>`;
+    } else {
+      h+=`<div class="banner b-info">${I.alert}<div>Tap the ${'★'} beside any exercise once added and it will suggest a weight and reps from your history, recent training and any open niggles.</div></div>`;
+    }
+    view.innerHTML=h; return;
+  }
+
   // ---- the form ----
   if(NEW_ADHOC && list.length) h+=`<button class="btn ghost" style="margin-bottom:12px" onclick="cancelNewAdhoc()">‹ Back to ${list.length} session${list.length===1?'':'s'}</button>`;
   h+=`<div class="card"><h3>${isToday?'Turned up without a plan?':'Log a workout you did'}</h3>
@@ -2762,6 +3397,7 @@ function vRandom(){
         <select id="aInt">${Object.keys(INTENSITY).map(k=>`<option value="${k}"${k==='moderate'?' selected':''}>${INTENSITY[k].t}</option>`).join('')}</select></div>
     </div>
     <button class="btn primary mt" onclick="rollAdhoc()">Generate a workout</button>
+    <button class="btn ghost mt" onclick="setBuildMode(true)">Or build your own</button>
   </div>`;
   h+=`<div class="banner b-info">${I.alert}<div>These count as a <b>★ bonus</b>, never as one of your four scored sessions. An unplanned session is a nice extra — it does not replace either gym session.</div></div>`;
   view.innerHTML=h;
@@ -2771,6 +3407,27 @@ window.openAdhoc=i=>{ ADHOC_IDX=i; window.scrollTo(0,0); render(); };
 window.closeAdhoc=()=>{ ADHOC_IDX=null; NEW_ADHOC=false; window.scrollTo(0,0); render(); };
 window.newAdhoc=()=>{ ADHOC_IDX=null; NEW_ADHOC=true; window.scrollTo(0,0); render(); };
 window.cancelNewAdhoc=()=>{ NEW_ADHOC=false; render(); };
+let BUILD_MODE=false, CUSTOM_EX=[];
+window.setBuildMode=v=>{ BUILD_MODE=v; if(!v) CUSTOM_EX=[]; window.scrollTo(0,0); render(); };
+window.addCustom=()=>{
+  const n=document.getElementById('cPick').value;
+  if(!CUSTOM_EX.includes(n)) CUSTOM_EX.push(n);
+  render();
+};
+window.rmCustom=i=>{ CUSTOM_EX.splice(i,1); render(); };
+window.startCustom=()=>{
+  const ds=curDate();
+  const ex=CUSTOM_EX.map(n=>{ const m=magicHint(n,ds);
+    // carry the suggestion through: target line reads "3 × 5 · try 67.5kg",
+    // and the weight box shows it as a placeholder so it is one tap to accept.
+    return {n,k:slug(n),t:m.w?`3 × ${m.reps} · try ${m.w}kg`:`3 × ${m.reps}`,hw:m.w}; });
+  DB.adhoc=DB.adhoc||{}; DB.adhoc[ds]=adhocList(ds);
+  DB.adhoc[ds].push({focus:'full',focusLabel:'Custom',mins:CUSTOM_EX.length*10,intensity:'moderate',
+                     rpeNote:'Your own selection — pace it how you like.',
+                     ex,accepted:true,sets:{},custom:true});
+  ADHOC_IDX=DB.adhoc[ds].length-1; BUILD_MODE=false; CUSTOM_EX=[]; NEW_ADHOC=false;
+  save(); render();
+};
 window.shiftAdhocDay=n=>{
   const d=iso(addD(parse(curDate()),n));
   VIEW_DATE = d>todayISO()? null : d;
@@ -2886,19 +3543,26 @@ function stretchBlock(kind){
     ${STRETCH[kind].map(n=>mobRow(n)).join('')}
   </details>`;
 }
-function recoveryBlock(ds){
-  const cur=(DB.log[ds]||{}).recovery;
+function recoveryBlock(ds,ai){
+  // ai = index of the ad-hoc workout being logged, or null for the planned session.
+  // Without this, picking a recovery length inside a random workout wrote a
+  // phantom planned-session record onto an open day.
+  const rec = ai==null ? (DB.log[ds]||{}) : (adhocList(ds)[ai]||{});
+  const cur = rec.recovery;
   const showPlunge=cur!=null&&cur>=10;
   return `<div class="card"><h3>Recovery</h3>
     <div class="sec mt" style="margin-bottom:4px">How long have you got afterwards?</div>
     <div class="recRow">${RECOVERY.map(r=>`
-      <button class="recBtn${cur===r.mins?' on':''}" onclick="setRecovery('${ds}',${r.mins})">${r.t}</button>`).join('')}</div>
+      <button class="recBtn${cur===r.mins?' on':''}" onclick="setRecovery('${ds}',${r.mins},${ai==null?'null':ai})">${r.t}</button>`).join('')}</div>
     ${cur!=null?`<div class="note">${RECOVERY.find(r=>r.mins===cur).d}</div>`:''}
     ${showPlunge?`<div class="banner b-warn mt">${I.alert}<div><b>Not the cold plunge today.</b> You have just lifted — cold water within about 4 hours blunts the adaptations you just trained for. Sauna and hot tub are fine.</div></div>`:''}
   </div>`;
 }
-window.setRecovery=(ds,m)=>{
-  const e=DB.log[ds]||(DB.log[ds]={type:SCHEDULE[parse(ds).getDay()],sets:{}});
+window.setRecovery=(ds,m,ai)=>{
+  const e = (ai==null||ai===undefined)
+    ? (DB.log[ds]||(DB.log[ds]={type:SCHEDULE[parse(ds).getDay()],sets:{}}))
+    : adhocList(ds)[ai];
+  if(!e) return;
   e.recovery = e.recovery===m ? null : m;
   save(); render();
 };
@@ -3109,6 +3773,18 @@ function vSync(){
     </div>`;
   }
 
+  // A straight count of what is held, so you can see at a glance that
+  // nothing has gone missing — no interpretation, just records.
+  const cs=census();
+  h+=`<div class="card"><h3>What is stored</h3>
+    <table class="mt"><tbody>${cs.rows.map(([l,n])=>
+      `<tr><td>${l}</td><td class="num"${n?'':' style="opacity:.45"'}>${n}</td></tr>`).join('')}</tbody></table>
+    <div class="row mt"><div class="muted">Records span</div><div class="muted">${
+      cs.first?`${fmtD(cs.first).replace(/^\w+, /,'')} → ${fmtD(cs.last).replace(/^\w+, /,'')}`:'nothing yet'}</div></div>
+    <div class="row"><div class="muted">Held on this device</div><div class="muted">${(cs.bytes/1024).toFixed(0)} KB${Store.ok?'':' (memory only)'}</div></div>
+    <div class="note">If a number here is lower than you expect, export a backup before doing anything else — that file is the recoverable copy.</div>
+  </div>`;
+
   h+=`<div class="card"><h3>Backup</h3>
     <div class="btnrow mt">
       <button class="btn ghost" onclick="exportData()">Export</button>
@@ -3118,7 +3794,7 @@ function vSync(){
     <div class="note">Worth doing occasionally even with sync on.</div>
   </div>`;
 
-  h+=`<div class="banner b-info">${I.alert}<div>Signing in on a second device <b>merges</b> both sets of data rather than overwriting — per entry, the most recently saved version wins.</div></div>`;
+  h+=`<div class="banner b-info">${I.alert}<div>Signing in on a second device <b>merges</b> both sets of data rather than overwriting. Two devices that logged different exercises on the same day both keep theirs; only the same field on the same day resolves to whichever was saved last.</div></div>`;
 
   h+=`<div class="card tight"><div class="row">
     <div class="muted">App version</div>
