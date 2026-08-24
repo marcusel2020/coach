@@ -524,6 +524,10 @@ const save=()=>{ DB.updatedAt=Date.now(); Store.set('coach.db',DB); if(window.Cl
 // One-time migration: body weight used to be stored in kg, now lb.
 // Lifting loads stay in kg and are untouched.
 DB.bodyfat=DB.bodyfat||{}; DB.fuel=DB.fuel||{}; DB.niggles=DB.niggles||[]; DB.adhoc=DB.adhoc||{}; DB.activities=DB.activities||[];
+// Was one ad-hoc session per day; now a list, so more than one can be logged.
+Object.keys(DB.adhoc).forEach(d=>{ if(!Array.isArray(DB.adhoc[d])) DB.adhoc[d]=[DB.adhoc[d]]; }); DB.activities=DB.activities||[];
+// Was one ad-hoc session per day; now a list, so you can log more than one.
+Object.keys(DB.adhoc).forEach(d=>{ if(!Array.isArray(DB.adhoc[d])) DB.adhoc[d]=[DB.adhoc[d]]; });
 if(!DB.rewards) DB.rewards=[
   {days:10,  label:'New gym top',                claimed:false},
   {days:20,  label:'Proper sports massage',      claimed:false},
@@ -1697,8 +1701,9 @@ function dayExtras(ds){
   const out=[];
   bonusOn(ds).forEach(k=>{
     if(k==='adhoc'){
-      const w=(DB.adhoc||{})[ds];
-      out.push({k,label:w?`${w.focusLabel} · ${w.mins} min`:'Random workout',detail:'adhoc'});
+      const ws=adhocList(ds);
+      if(ws.length) ws.forEach((w,i)=>out.push({k,label:`${w.focusLabel||'Workout'} · ${w.mins} min`,detail:'adhoc',idx:i}));
+      else out.push({k,label:'Random workout',detail:'adhoc',idx:0});
     } else if(k==='activity'){
       (DB.activities||[]).filter(a=>a.date===ds).forEach(a=>out.push({k,label:a.sub,detail:'activity',data:a}));
     } else if(k==='extra'){
@@ -1723,7 +1728,7 @@ function starRow(ds){
 }
 function starDetail(ds,x){
   if(x.detail==='adhoc'){
-    const w=(DB.adhoc||{})[ds]; if(!w||!w.ex) return '';
+    const w=adhocList(ds)[x.idx||0]; if(!w||!w.ex) return '';
     return `<div class="drillBlock">
       <div class="dHead">${w.focusLabel} · ${w.mins} min · ${INTENSITY[w.intensity].t}</div>
       ${w.ex.map(e=>{
@@ -2146,7 +2151,7 @@ function vPlan(){
    Entirely optional. With no config the app runs exactly as
    before, storing everything locally on the device.
    ============================================================ */
-const BUILD='2026-08-24 · v30';   // shown on the Sync tab — check this to confirm an update landed
+const BUILD='2026-08-24 · v31';   // shown on the Sync tab — check this to confirm an update landed
 const FBV='https://www.gstatic.com/firebasejs/10.12.5';
 
 /* Firebase config lives in its own file — config.js — which this file never
@@ -2637,16 +2642,63 @@ function adhocWarning(w){
   return null;
 }
 
+function adhocList(ds){ const a=DB.adhoc[ds]; return Array.isArray(a)?a:(a?[a]:[]); }
+
 function vRandom(){
-  const ds=todayISO();
-  const w=(DB.adhoc||{})[ds];
+  const ds=curDate(), isToday=ds===todayISO();
+  const list=adhocList(ds);
   let h=backBar();
 
-  if(w&&w.accepted){
+  h+=`<div class="weeknav" style="margin-bottom:12px">
+    <button onclick="shiftAdhocDay(-1)">‹</button>
+    <div><div class="wl">${isToday?'Today':fmtD(ds).replace(/^(\w+), /,'$1 ')}</div>
+    <div class="wd">${isToday?'':'logging a past day'}</div></div>
+    <button onclick="shiftAdhocDay(1)" ${isToday?'disabled style="opacity:.3"':''}>›</button>
+  </div>`;
+
+  // ---- one open session ----
+  if(ADHOC_IDX!=null && list[ADHOC_IDX]){
+    const i=ADHOC_IDX, w=list[i];
+
+    if(w.options && w.pick==null){
+      h+=`<div class="card"><h3>Pick one</h3>
+        <div class="sec mt">${FOCUS.find(f=>f.k===w.focus).t} · ${w.mins} min · ${INTENSITY[w.intensity].t}</div>
+        <div class="note">Three options, same focus and effort. Pick whichever suits what is free on the floor.</div></div>`;
+      w.options.forEach((o,n)=>{
+        h+=`<div class="card" style="cursor:pointer" onclick="pickOption(${n})">
+          <div class="row"><div style="font-weight:650;font-size:15px">Option ${n+1}</div>
+          <div class="muted" style="font-size:20px">›</div></div>
+          <div class="mt">${o.ex.map(x=>`<div class="wrow"><div class="wa">${x.n}</div><div class="wb">${x.t}</div></div>`).join('')}</div>
+        </div>`;
+      });
+      h+=`<button class="btn ghost" onclick="rerollAdhoc()">Three more</button>`;
+      h+=`<button class="btn ghost mt" onclick="discardAdhoc(${i})">Cancel</button>`;
+      view.innerHTML=h; return;
+    }
+
+    if(!w.accepted){
+      const warn=adhocWarning(w);
+      h+=`<div class="card"><div class="row"><div>
+        <h2>${w.focusLabel} · ${w.mins} min</h2>
+        <div class="sec">${INTENSITY[w.intensity].t}${w.pick!=null?` · option ${w.pick+1}`:''}</div></div></div>
+        <div class="note">${w.rpeNote}</div></div>`;
+      if(warn&&isToday) h+=`<div class="banner b-warn">${I.alert}<div><b>Worth reconsidering.</b> ${warn}</div></div>`;
+      h+=`<div class="card"><h3>The session</h3>
+        <table class="mt"><tbody>${w.ex.map(x=>`<tr><td>
+          <div style="display:flex;gap:10px;align-items:center">${poseIcon(x.n)}<div style="font-weight:600">${x.n}</div></div>
+          </td><td class="num">${x.t}</td></tr>`).join('')}</tbody></table>
+        <div class="note">Rest 90s on the big lifts, 60s on the rest. Tap any figure for full technique.</div></div>`;
+      h+=`<div class="btnrow"><button class="btn primary" onclick="acceptAdhoc()">Accept</button>
+        <button class="btn" onclick="backToOptions()">Other options</button></div>`;
+      h+=`<button class="btn ghost mt" onclick="discardAdhoc(${i})">Discard</button>`;
+      view.innerHTML=h; return;
+    }
+
+    // accepted — log it
     const done=bonusOn(ds).includes('adhoc');
     h+=`<div class="card"><div class="row"><div>
       <h2>${w.focusLabel} · ${w.mins} min</h2>
-      <div class="sec">${INTENSITY[w.intensity].t} · logged as a bonus, never scored</div>
+      <div class="sec">${INTENSITY[w.intensity].t}${list.length>1?` · session ${i+1} of ${list.length}`:''}</div>
     </div>${done?pill('bonus'):''}</div>
     <div class="note">${w.rpeNote}</div></div>`;
 
@@ -2661,64 +2713,45 @@ function vRandom(){
           ${poseIcon(x.n)}
         </div>
         <div class="setHead"><div>Set</div><div>Weight (kg)</div><div>Reps</div></div>
-        ${Array.from({length:Math.max(INTENSITY[w.intensity].sets,sets.length)}).map((_,i)=>`<div class="setrow">
-          <div class="n">${i+1}</div>
-          <input inputmode="decimal" placeholder="—" value="${sets[i]?.w??''}" onchange="adhocSet('${x.k}',${i},'w',this.value)">
-          <input inputmode="numeric" placeholder="${INTENSITY[w.intensity].reps}" value="${sets[i]?.r??''}" onchange="adhocSet('${x.k}',${i},'r',this.value)">
+        ${Array.from({length:Math.max(INTENSITY[w.intensity].sets,sets.length)}).map((_,n)=>`<div class="setrow">
+          <div class="n">${n+1}</div>
+          <input inputmode="decimal" placeholder="—" value="${sets[n]?.w??''}" onchange="adhocSet('${x.k}',${n},'w',this.value)">
+          <input inputmode="numeric" placeholder="${INTENSITY[w.intensity].reps}" value="${sets[n]?.r??''}" onchange="adhocSet('${x.k}',${n},'r',this.value)">
         </div>`).join('')}
         <button class="addSet" onclick="adhocAddSet('${x.k}')">+ Add a set</button>
+        <div class="exTools"><button onclick="startRest(${/Squat|Deadlift|RDL|Press|Row|Pulldown|Dip|Chin/.test(x.n)?90:60},'${x.n.replace(/'/g,'')}')">Rest ${/Squat|Deadlift|RDL|Press|Row|Pulldown|Dip|Chin/.test(x.n)?'90s':'60s'}</button></div>
       </div>`;
     });
-
     h+=stretchBlock(wk);
-    h+=recoveryBlock(ds);
     h+=`<div class="card"><h3>How was that?</h3>
       <div class="sec mt" style="margin-bottom:2px">Difficulty</div>${adhocScale('rpe','diff')}
       <div class="sec" style="margin-top:14px;margin-bottom:2px">How you felt</div>${adhocScale('mood','mood')}
     </div>`;
     h+=`<button class="btn ${done?'':'primary'}" onclick="finishAdhoc()">${done?'Logged ✓ — tap to undo':'Mark done — earns a ★'}</button>`;
-    h+=`<button class="btn ghost mt" onclick="if(confirm('Discard this workout?'))clearAdhoc()">Discard</button>`;
+    h+=`<div class="btnrow mt"><button class="btn ghost" onclick="closeAdhoc()">‹ All sessions</button>
+      <button class="btn danger" onclick="if(confirm('Discard this workout?'))discardAdhoc(${i})">Discard</button></div>`;
     view.innerHTML=h; return;
   }
 
-  // three options to choose between
-  if(w&&w.options&&w.pick==null){
-    h+=`<div class="card"><h3>Pick one</h3>
-      <div class="sec mt">${FOCUS.find(f=>f.k===w.focus).t} · ${w.mins} min · ${INTENSITY[w.intensity].t}</div>
-      <div class="note">Three options, same focus and effort. Pick whichever suits what is free on the floor.</div></div>`;
-    w.options.forEach((o,n)=>{
-      h+=`<div class="card" style="cursor:pointer" onclick="pickOption(${n})">
-        <div class="row"><div style="font-weight:650;font-size:15px">Option ${n+1}</div>
-        <div class="muted" style="font-size:20px">›</div></div>
-        <div class="mt">${o.ex.map(x=>`<div class="wrow"><div class="wa">${x.n}</div><div class="wb">${x.t}</div></div>`).join('')}</div>
+  // ---- the day's list ----
+  if(list.length && !NEW_ADHOC){
+    h+=`<h3 style="margin-bottom:8px">${list.length} session${list.length===1?'':'s'} ${isToday?'today':'that day'}</h3>`;
+    list.forEach((w,i)=>{
+      const logged=Object.values(w.sets||{}).some(a=>a.some(v=>v&&v.w));
+      h+=`<div class="card tight" style="cursor:pointer" onclick="openAdhoc(${i})">
+        <div class="row"><div>
+          <div style="font-weight:600;font-size:15px">${w.focusLabel||'Workout'} · ${w.mins} min</div>
+          <div class="muted">${w.accepted?(logged?'Logged':'Accepted — not logged yet'):'Not accepted yet'}${w.intensity?` · ${INTENSITY[w.intensity].t}`:''}</div>
+        </div><div class="muted" style="font-size:20px">›</div></div>
       </div>`;
     });
-    h+=`<button class="btn ghost" onclick="rerollAdhoc()">Three more</button>`;
-    h+=`<button class="btn ghost mt" onclick="clearAdhoc()">Start over</button>`;
+    h+=`<button class="btn mt" onclick="newAdhoc()">Generate another workout</button>`;
     view.innerHTML=h; return;
   }
 
-  if(w&&!w.accepted){
-    const warn=adhocWarning(w);
-    h+=`<div class="card"><div class="row"><div>
-      <h2>${w.focusLabel} · ${w.mins} min</h2>
-      <div class="sec">${INTENSITY[w.intensity].t}${w.pick!=null?` · option ${w.pick+1}`:''}</div></div></div>
-      <div class="note">${w.rpeNote}</div></div>`;
-    if(warn) h+=`<div class="banner b-warn">${I.alert}<div><b>Worth reconsidering.</b> ${warn}</div></div>`;
-    h+=`<div class="card"><h3>The session</h3>
-      <table class="mt"><tbody>${w.ex.map(x=>`<tr><td>
-        <div style="display:flex;gap:10px;align-items:center">${poseIcon(x.n)}<div style="font-weight:600">${x.n}</div></div>
-        </td><td class="num">${x.t}</td></tr>`).join('')}</tbody></table>
-      <div class="note">Rest 90s on the big lifts, 60s on the rest. Tap any figure for full technique.</div>
-    </div>`;
-    h+=`<div class="btnrow"><button class="btn primary" onclick="acceptAdhoc()">Accept</button>
-      <button class="btn" onclick="backToOptions()">Other options</button></div>`;
-    h+=`<button class="btn ghost mt" onclick="clearAdhoc()">Start over</button>`;
-    view.innerHTML=h; return;
-  }
-
-  // the form
-  h+=`<div class="card"><h3>Turned up without a plan?</h3>
+  // ---- the form ----
+  if(NEW_ADHOC && list.length) h+=`<button class="btn ghost" style="margin-bottom:12px" onclick="cancelNewAdhoc()">‹ Back to ${list.length} session${list.length===1?'':'s'}</button>`;
+  h+=`<div class="card"><h3>${isToday?'Turned up without a plan?':'Log a workout you did'}</h3>
     <div class="sec mt">Tell it what you fancy and it builds something from what is actually on the floor here.</div>
     <div class="mt"><label class="f">What are you training</label>
       <select id="aFocus">${FOCUS.map(f=>`<option value="${f.k}">${f.t}</option>`).join('')}</select></div>
@@ -2733,55 +2766,77 @@ function vRandom(){
   h+=`<div class="banner b-info">${I.alert}<div>These count as a <b>★ bonus</b>, never as one of your four scored sessions. An unplanned session is a nice extra — it does not replace either gym session.</div></div>`;
   view.innerHTML=h;
 }
+let ADHOC_IDX=null;
+window.openAdhoc=i=>{ ADHOC_IDX=i; window.scrollTo(0,0); render(); };
+window.closeAdhoc=()=>{ ADHOC_IDX=null; NEW_ADHOC=false; window.scrollTo(0,0); render(); };
+window.newAdhoc=()=>{ ADHOC_IDX=null; NEW_ADHOC=true; window.scrollTo(0,0); render(); };
+window.cancelNewAdhoc=()=>{ NEW_ADHOC=false; render(); };
+window.shiftAdhocDay=n=>{
+  const d=iso(addD(parse(curDate()),n));
+  VIEW_DATE = d>todayISO()? null : d;
+  ADHOC_IDX=null; NEW_ADHOC=false; render();
+};
+
 function adhocScale(field,kind){
-  const ds=todayISO(), w=(DB.adhoc||{})[ds]||{}, cur=w[field]||0;
+  const w=curAdhoc()||{}, cur=w[field]||0;
   const labels=kind==='mood'?MOOD_LABEL:DIFF_LABEL;
   const icon = kind==='mood'?face:effort;
   return `<div class="feel">${[1,2,3,4,5].map(v=>`
     <button class="fbtn${cur===v?' on':''}" onclick="adhocFeel('${field}',${v})">${icon(v)}<span>${labels[v-1]}</span></button>`).join('')}</div>`;
 }
+let NEW_ADHOC=false;
 window.rollAdhoc=()=>{
+  const ds=curDate();
   const f=document.getElementById('aFocus').value;
   const m=parseInt(document.getElementById('aMins').value);
   const i=document.getElementById('aInt').value;
-  DB.adhoc=DB.adhoc||{}; DB.activities=DB.activities||[];
-  DB.adhoc[todayISO()]={options:[genWorkout(f,m,i),genWorkout(f,m,i),genWorkout(f,m,i)],
-                        pick:null,accepted:false,sets:{},focus:f,mins:m,intensity:i};
+  DB.adhoc=DB.adhoc||{}; DB.adhoc[ds]=adhocList(ds);
+  DB.adhoc[ds].push({options:[genWorkout(f,m,i),genWorkout(f,m,i),genWorkout(f,m,i)],
+                     pick:null,accepted:false,sets:{},focus:f,mins:m,intensity:i});
+  ADHOC_IDX=DB.adhoc[ds].length-1; NEW_ADHOC=false;
   save(); render();
 };
+const curAdhoc=()=>adhocList(curDate())[ADHOC_IDX];
+const putAdhoc=v=>{ DB.adhoc[curDate()][ADHOC_IDX]=v; };
 window.pickOption=n=>{
-  const w=DB.adhoc[todayISO()];
-  const o=w.options[n];
-  DB.adhoc[todayISO()]={...o,options:w.options,pick:n,accepted:false,sets:{}};
+  const w=curAdhoc(), o=w.options[n];
+  putAdhoc({...o,options:w.options,pick:n,accepted:false,sets:{}});
   save(); render();
 };
 window.backToOptions=()=>{
-  const w=DB.adhoc[todayISO()];
-  DB.adhoc[todayISO()]={options:w.options,pick:null,accepted:false,sets:{},
-                        focus:w.focus,mins:w.mins,intensity:w.intensity};
+  const w=curAdhoc();
+  putAdhoc({options:w.options,pick:null,accepted:false,sets:{},focus:w.focus,mins:w.mins,intensity:w.intensity});
   save(); render();
 };
 window.rerollAdhoc=()=>{
-  const w=DB.adhoc[todayISO()];
-  DB.adhoc[todayISO()]={options:[genWorkout(w.focus,w.mins,w.intensity),genWorkout(w.focus,w.mins,w.intensity),
-                                 genWorkout(w.focus,w.mins,w.intensity)],
-                        pick:null,accepted:false,sets:{},focus:w.focus,mins:w.mins,intensity:w.intensity};
+  const w=curAdhoc();
+  putAdhoc({options:[genWorkout(w.focus,w.mins,w.intensity),genWorkout(w.focus,w.mins,w.intensity),
+                     genWorkout(w.focus,w.mins,w.intensity)],
+            pick:null,accepted:false,sets:{},focus:w.focus,mins:w.mins,intensity:w.intensity});
   save(); render();
 };
-window.acceptAdhoc=()=>{ DB.adhoc[todayISO()].accepted=true; save(); render(); };
-window.clearAdhoc=()=>{ delete DB.adhoc[todayISO()]; save(); render(); };
+window.acceptAdhoc=()=>{ curAdhoc().accepted=true; save(); render(); };
+window.discardAdhoc=i=>{
+  const ds=curDate();
+  DB.adhoc[ds]=adhocList(ds); DB.adhoc[ds].splice(i,1);
+  if(!DB.adhoc[ds].length){ delete DB.adhoc[ds];
+    const cur=new Set(bonusOn(ds)); cur.delete('adhoc');
+    if(cur.size) DB.bonus[ds]=[...cur]; else delete DB.bonus[ds];
+  }
+  ADHOC_IDX=null; save(); render();
+};
 window.adhocAddSet=k=>{
-  const w=DB.adhoc[todayISO()]; w.sets=w.sets||{}; w.sets[k]=w.sets[k]||[];
+  const w=curAdhoc(); w.sets=w.sets||{}; w.sets[k]=w.sets[k]||[];
   const min=INTENSITY[w.intensity].sets;
   while(w.sets[k].length<min) w.sets[k].push({});
   w.sets[k].push({}); save(); render();
 };
 window.adhocSet=(k,i,f,v)=>{
-  const w=DB.adhoc[todayISO()]; w.sets=w.sets||{}; w.sets[k]=w.sets[k]||[];
+  const w=curAdhoc(); w.sets=w.sets||{}; w.sets[k]=w.sets[k]||[];
   w.sets[k][i]=w.sets[k][i]||{}; w.sets[k][i][f]=v; save();
 };
-window.adhocFeel=(field,v)=>{ const w=DB.adhoc[todayISO()]; w[field]= w[field]===v?null:v; save(); render(); };
-window.finishAdhoc=()=>{ toggleBonus(todayISO(),'adhoc'); };
+window.adhocFeel=(field,v)=>{ const w=curAdhoc(); w[field]= w[field]===v?null:v; save(); render(); };
+window.finishAdhoc=()=>{ toggleBonus(curDate(),'adhoc'); };
 
 
 /* ============================================================
