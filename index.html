@@ -325,6 +325,18 @@ td.num{overflow-wrap:anywhere}
 .dayRow .ds{flex:0 0 auto;color:var(--good);font-size:12px;letter-spacing:-1px}
 .noteBody p{margin:0 0 10px;font-size:14.5px;line-height:1.6}
 .noteBody p:last-child{margin-bottom:0}
+
+/* --- recovery session ticks --- */
+.recRowItem{display:flex;align-items:center;gap:11px}
+.recRowItem.done{border-color:var(--good)}
+.tick{flex:0 0 26px;height:26px;border-radius:8px;border:1.5px solid var(--border);
+  background:var(--surface-2);color:#fff;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;padding:0}
+.tick.on{background:var(--good);border-color:var(--good)}
+.tick svg{width:15px;height:15px}
+/* --- equipment cross-links --- */
+.eqEx{display:flex;flex-wrap:wrap;gap:6px}
+.eqEx .chip{font-size:12.5px}
 </style>
 </head>
 <body>
@@ -479,6 +491,7 @@ const BONUS={
   massage:{label:'Massage gun / roller', sub:'Soreness relief on stiff days'},
   racquet:{label:'Tennis / badminton / pickleball', sub:'Bonus movement — watch fatigue before games'},
   adhoc:  {label:'Random workout',   sub:'An unplanned session you turned up for'},
+  recovery:{label:'Recovery session', sub:'Mobility, pool or spa — keeps you on the court'},
   activity:{label:'Extra activity',  sub:'Something logged outside the plan'},
   extra:   {label:'Extra exercise',  sub:'Added on top of a planned session'}
 };
@@ -584,7 +597,8 @@ const SHAPE={
   membership:{kind:'obj',  def:MEMBERSHIP_DEFAULT},
   settings:  {kind:'obj',  def:SETTINGS_DEFAULT},
   rewards:   {kind:'newest'},
-  notes:     {kind:'byDate'}                  // Monday of a week: {text, at, by}
+  notes:     {kind:'byDate'},                 // Monday of a week: {text, at, by}
+  recovery:  {kind:'byDate', of:'workouts'}   // date: [recovery session, ...]
 };
 
 // Fill in anything missing and repair old shapes, without touching
@@ -604,6 +618,10 @@ function normalise(d){
   // every ad-hoc workout needs a stable id so two devices can merge it
   // rather than each keeping its own copy
   Object.keys(o.adhoc).forEach(d2=>o.adhoc[d2].forEach((w,i)=>{ if(w&&!w.id) w.id=d2+'#'+i; }));
+  Object.keys(o.recovery).forEach(d2=>{
+    if(!Array.isArray(o.recovery[d2])) o.recovery[d2]=[o.recovery[d2]];
+    o.recovery[d2].forEach((w,i)=>{ if(w&&!w.id) w.id='r'+d2+'#'+i; });
+  });
   // A brand-new install is already in lb, so it must not be run through the
   // kg→lb conversion. An existing store without the flag genuinely needs it.
   if(fresh) o.settings.unitMigrated=true;
@@ -1202,6 +1220,10 @@ function openGuide(name){
     <ol class="glist num">${g.steps.map(x=>`<li>${x}</li>`).join('')}</ol>
     <h3 style="margin:16px 0 6px">Getting the most from it</h3>
     <ul class="glist tip">${g.tips.map(x=>`<li>${x}</li>`).join('')}</ul>
+    ${(()=>{ const ids=EX_EQUIP[name]||[]; if(!ids.length) return '';
+      return `<h3 style="margin:16px 0 6px">Equipment</h3>
+      <div class="eqEx">${ids.map(id=>{ const e=EQUIP.find(x=>x.id===id);
+        return `<button class="chip" onclick="closeGuide();goEquip('${id}')">${e.n}</button>`; }).join('')}</div>`; })()}
     <button class="btn ghost" style="margin:18px 0 8px" onclick="closeGuide()">Close</button>
   </div>`;
   el.classList.add('open');
@@ -1266,7 +1288,8 @@ function render(){
   document.getElementById('hdrPill').innerHTML =
     pre ? pill(daysToStart()===1?'starting':'soon') : pill(ws.state);
   const MT={reward:'Reward ladder',membership:'Membership',            fuel:'Nutrition',review:'Progress review',niggles:'Niggles',random:'Random workout',
-            log:'Log an activity',library:'Library',sync:'Sync details',history:'History'};
+            log:'Log an activity',library:'Library',sync:'Sync details',history:'History',
+            recovery:'Recovery session',equipment:'Equipment library'};
   const T={today:'Today',week:'This week',progress:'Progress',
            more:MORE?MT[MORE]:'More',plan:'The plan'};
   document.getElementById('hdrTitle').textContent=T[TAB];
@@ -1276,7 +1299,8 @@ function render(){
     : weekTitle(new Date());
   if(TAB==='more'){ MORE?({reward:vReward,membership:vMembership,
       fuel:vFuel,review:vReview,niggles:vNiggles,random:vRandom,log:vLog,
-      library:vLibrary,sync:vSync,history:vHistory})[MORE]() : vMore(); }
+      library:vLibrary,sync:vSync,history:vHistory,
+      recovery:vRecovery,equipment:vEquipment})[MORE]() : vMore(); }
   else ({today:vToday,week:vWeek,progress:vProgress,plan:vPlan})[TAB]();
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===TAB));
 }
@@ -1902,6 +1926,7 @@ function weekRows(mon){
     const bits=[];
     if(done) bits.push(e.type==='bball'?'Played':(nSets?`${nSets} exercise${nSets===1?'':'s'}`:'Done'));
     extras.forEach(w=>bits.push(`${w.focusLabel||'Random'} workout`));
+    recList(ds).forEach(w=>bits.push(w.focusLabel));
     acts.forEach(a=>bits.push(a.sub));
     const label = e.type==='bball'||planned==='bball' ? 'Basketball'
                 : prog ? prog.label
@@ -1910,7 +1935,7 @@ function weekRows(mon){
                  && ['bball','gymA','gymB'].includes(planned)
                  && ds<todayISO() && !isAway(ds);
     // bonus extras are shown on the day but never counted as sessions
-    const extraLabels=(DB.bonus[ds]||[]).filter(k=>!['adhoc','activity','extra'].includes(k))
+    const extraLabels=(DB.bonus[ds]||[]).filter(k=>!['adhoc','activity','extra','recovery'].includes(k))
       .map(k=>(BONUS[k]||{}).label).filter(Boolean);
     return {ds,label,bits,extraLabels,stars,done,missed,away:isAway(ds),future:ds>todayISO()};
   });
@@ -2319,6 +2344,7 @@ function census(d){
   const dates=[
     ...Object.keys(d.log||{}), ...Object.keys(d.weights||{}), ...Object.keys(d.bodyfat||{}),
     ...Object.keys(d.fuel||{}), ...Object.keys(d.bonus||{}), ...Object.keys(d.adhoc||{}),
+    ...Object.keys(d.recovery||{}),
     ...(d.activities||[]).map(a=>a.date), ...(d.niggles||[]).map(n=>n.date),
     ...(d.visits||[]).map(v=>v.date)
   ].filter(Boolean).sort();
@@ -2327,6 +2353,7 @@ function census(d){
       ['Session days',        Object.keys(d.log||{}).length],
       ['Exercises with sets', sets],
       ['Random / custom workouts', Object.values(d.adhoc||{}).flat().length],
+      ['Recovery sessions',   Object.values(d.recovery||{}).flat().length],
       ['Activities logged',   (d.activities||[]).length],
       ['Morning weights',     Object.keys(d.weights||{}).length],
       ['Body Hub scans',      Object.keys(d.bodyfat||{}).length],
@@ -2442,7 +2469,7 @@ function vPlan(){
    Entirely optional. With no config the app runs exactly as
    before, storing everything locally on the device.
    ============================================================ */
-const BUILD='2026-08-24 · v35';   // shown on the Sync tab — check this to confirm an update landed
+const BUILD='2026-08-24 · v36';   // shown on the Sync tab — check this to confirm an update landed
 const FBV='https://www.gstatic.com/firebasejs/10.12.5';
 
 /* Firebase config lives in its own file — config.js — which this file never
@@ -2630,6 +2657,7 @@ window.Cloud=Cloud;
    ============================================================ */
 const MORE_ITEMS=[
   {k:'random',     t:'Random workout',   d:'No plan today? Build one from what is here'},
+  {k:'recovery',   t:'Recovery session',  d:'Mobility, pool or spa — knees, wrists, back, ankles, posture'},
   {k:'log',        t:'Log an activity',  d:'Runs, swims, classes, sauna — anything extra'},
   {k:'reward',     t:'Reward ladder',    d:'Earn something real for staying consistent'},
   {k:'history',    t:'History',           d:'Every session, set, run and swim you have logged — and your best lifts'},
@@ -2638,6 +2666,7 @@ const MORE_ITEMS=[
   {k:'niggles',    t:'Niggles',          d:'Log aches early, spot patterns'},
   {k:'membership', t:'Membership',       d:'Cost per visit and holidays'},
   {k:'library',    t:'Library',           d:'Every exercise, warm-up and stretch'},
+  {k:'equipment',  t:'Equipment library', d:'Every machine, rack and facility, and what each is for'},
   {k:'sync',       t:'Sync details',      d:'Connection, backup and app version'}
 ];
 function vMore(){
@@ -2940,6 +2969,21 @@ function historyRows(){
       });
     });
   });
+  // recovery sessions
+  Object.keys(DB.recovery||{}).forEach(d=>{
+    recList(d).forEach(w=>{
+      const nDone=Object.values(w.did||{}).filter(Boolean).length;
+      const V=REC_VENUE.find(v=>v.k===w.venue);
+      out.push({d,cat:'Recovery',name:w.focusLabel,
+        v1:V?V.t:'—', v2:w.mins?`${w.mins} min`:'—', v3:`${nDone}/${(w.ex||[]).length} done`,
+        note:['session summary',w.mood?`felt ${MOOD_LABEL[w.mood-1]}`:''].filter(Boolean).join(' · ')});
+      (w.ex||[]).forEach(x=>{
+        out.push({d,cat:'Recovery',name:x.n,v1:'—',v2:x.t,
+          v3:(w.did||{})[x.k]?'done':'—', note:w.focusLabel});
+      });
+    });
+  });
+
   // logged activities
   (DB.activities||[]).forEach(a=>{
     const v=a.vals||{};
@@ -2951,7 +2995,7 @@ function historyRows(){
   // bonus extras with nothing else recorded
   Object.keys(DB.bonus||{}).forEach(d=>{
     (DB.bonus[d]||[]).forEach(k=>{
-      if(['adhoc','activity','extra'].includes(k)) return;
+      if(['adhoc','activity','extra','recovery'].includes(k)) return;
       const b=BONUS[k]; if(!b) return;
       const cat=['sauna','plunge','hottub','massage'].includes(k)?'Recovery'
               :['blaze','yoga'].includes(k)?'Class'
@@ -3187,6 +3231,299 @@ window.resolveNiggle=i=>{ DB.niggles[i].resolved=true; save(); render(); };
    counts as a ★ bonus — never as a scored session, because it
    was not part of the plan.
    ============================================================ */
+/* ============================================================
+   MOBILITY & RECOVERY DRILLS
+   ------------------------------------------------------------
+   These go into GUIDE alongside the lifts, so they get the same
+   technique pages, pose icons, search and library filters.
+   ============================================================ */
+const MOBILITY_GUIDE={
+'Seated Leg Extension':{pose:'legcurl',kit:'Life Fitness leg extension',brief:'Direct quad work the knee usually tolerates',
+ setup:['Set the back pad so your knee joint lines up with the machine’s pivot.','Shin pad just above the ankle, not on the foot.'],
+ steps:['Straighten the legs smoothly until they are fully out.','Squeeze at the top for one second.','Lower over three seconds — the slow return is where the benefit is.'],
+ tips:['Its reputation for wrecking knees comes from heavy low-rep work. Light and high-rep is one of the better things for a sore knee.','Full extension at the top matters. Stopping short misses the range that actually needs strengthening.'],
+ watch:'seated leg extension machine proper form'},
+
+'Hip Abduction':{pose:'hipstretch',kit:'Life Fitness hip abduction machine',brief:'The muscle that stops your knee falling inwards',
+ setup:['Sit tall, pads against the outside of your knees.'],
+ steps:['Push the knees apart smoothly, as wide as the machine allows.','Hold one second at the end.','Return slowly — do not let the stack drop.'],
+ tips:['Sit upright rather than leaning back; leaning turns it into a different exercise.','Directly relevant to both your knee and your ankles — this is the muscle that controls landing.','15–20 reps. It responds better to volume than to load.'],
+ watch:'hip abduction machine glute medius form'},
+
+'Hip Adduction':{pose:'hipstretch',kit:'Life Fitness hip adduction machine',brief:'Groin strength — the best-evidenced protection against a groin strain',
+ setup:['Sit tall, pads on the inside of your knees, legs comfortably apart.'],
+ steps:['Squeeze the knees together under control.','Hold one second.','Let them open slowly to a comfortable stretch, not to the end of the machine.'],
+ tips:['Court sports are hard on adductors — all that lateral push-off. Strong ones are genuinely protective.','Do not force the open position. A stretch you cannot control is where strains happen.'],
+ watch:'hip adduction machine proper form'},
+
+'Cat–Cow':{pose:'rotate',kit:'Floor mat',brief:'Wakes the spine up segment by segment',
+ setup:['On hands and knees. Hands under shoulders, knees under hips.'],
+ steps:['Breathe out and round your back towards the ceiling, tucking your chin and your tailbone.','Breathe in and reverse it — chest forward, tailbone up, look slightly ahead.','Move slowly enough that you feel it travel one vertebra at a time.'],
+ tips:['This is not a stretch to force. The range you have today is the range.','If your wrists complain, do it on your fists or forearms.'],
+ watch:'cat cow spinal mobility how to'},
+
+'Bird Dog':{pose:'deadbug',kit:'Floor mat',brief:'Teaches the back to stay still while the limbs move',
+ setup:['On hands and knees, back flat enough to balance a glass of water on it.'],
+ steps:['Brace your midsection gently — about 20% effort, not a full clench.','Reach one arm forward and the opposite leg back until both are level with your torso.','Hold for three seconds without letting your hips tilt.','Return under control and swap sides.'],
+ tips:['If your hips rock, you have gone too far. Shorten the reach.','Slow is the whole point — speed lets your lower back do the work instead of your core.'],
+ watch:'bird dog exercise proper form core'},
+
+'90/90 Hip Switch':{pose:'hipstretch',kit:'Floor mat',brief:'Rotation through the hips, both directions',
+ setup:['Sit on the floor, one leg bent 90° in front, the other bent 90° out to the side.'],
+ steps:['Sit tall — hands behind you for support if you need them.','Lift both knees and rotate them across to the other side, keeping your feet planted.','Pause when you arrive, sit tall again, then switch back.'],
+ tips:['Most people cannot sit upright in this position at first. Sit on a low block or a folded mat until you can.','Move from the hips, not by leaning your torso around.'],
+ watch:'90 90 hip switch mobility drill'},
+
+'World’s Greatest Stretch':{pose:'split',kit:'Floor mat',brief:'Hips, groin and upper back in one movement',
+ setup:['Start in a press-up position.'],
+ steps:['Step one foot up outside your hand, into a deep lunge.','Drop the back knee if you need to, and let your hips sink.','Put the inside hand on the floor and rotate the other arm up towards the ceiling, following it with your eyes.','Come back down, step the foot back, and swap sides.'],
+ tips:['The rotation is the part most people rush. Hold it for two seconds at the top.','Back heel pushing away lengthens the hip flexor — do not let it collapse.'],
+ watch:'worlds greatest stretch tutorial'},
+
+'Open Book Rotation':{pose:'rotate',kit:'Floor mat',brief:'Upper-back rotation without twisting the lower back',
+ setup:['Lie on your side, knees stacked and bent to 90°, arms straight out in front, palms together.'],
+ steps:['Keep your knees pinned together and pressed down.','Open the top arm in a wide arc across your body towards the floor behind you.','Follow your hand with your eyes and let your chest open.','Hold two seconds, return slowly.'],
+ tips:['Knees separating means the movement has leaked into your lower back. Pin them with your other hand or a foam roller.','Getting the hand to the floor is not required and never the goal.'],
+ watch:'open book thoracic rotation stretch'},
+
+'Dead Hang':{pose:'hang',kit:'Pull-up bar in the functional zone',brief:'Decompresses the spine, opens the shoulders, builds grip',
+ setup:['Find a bar you can hang from with your feet clear of the floor, or bend your knees.'],
+ steps:['Take an overhand grip a little wider than your shoulders.','Hang with your arms straight and let your shoulders rise towards your ears.','Breathe. Stay relaxed.','Step down under control rather than dropping.'],
+ tips:['Start with 20 seconds and build. Two minutes total across the session is plenty.','If your grip gives out first, use straps — the point here is the shoulders and spine.','Sharp shoulder pain means stop. A stretch is fine, a pinch is not.'],
+ watch:'dead hang benefits how to'},
+
+'Deep Squat Hold':{pose:'squat',kit:'A rack or wall for balance',brief:'The position your ankles and hips should own',
+ setup:['Stand with feet a little wider than your shoulders, toes turned slightly out.'],
+ steps:['Sink into the deepest squat you can hold with your heels down.','Hold on to a rack upright if you need to at first.','Let your elbows push your knees gently outwards.','Breathe normally and let the position settle for 30–60 seconds.'],
+ tips:['Heels lifting is an ankle restriction. Put a small plate under them and work the ankle drill separately.','Ten minutes a week here does more for your squat depth than any amount of static stretching.'],
+ watch:'deep squat hold mobility'},
+
+'Wall Sit':{pose:'squat',kit:'A wall',brief:'Isometric quad work that knees usually tolerate well',
+ setup:['Stand with your back flat against a wall, feet about two of your foot-lengths out from it.'],
+ steps:['Slide down until your thighs are roughly parallel to the floor.','Knees over your feet, shins near vertical.','Hold. Breathe normally rather than holding your breath.'],
+ tips:['Isometrics tend to calm an irritable knee rather than aggravate it — this is often the one that works when squatting hurts.','If the knee complains, come up higher. A shallower angle still counts.'],
+ watch:'wall sit proper form'},
+
+'Spanish Squat':{pose:'squat',kit:'Band, or the cable stack on a light setting',brief:'Loads the quad hard with very little load on the kneecap',
+ setup:['Loop a heavy band around a rack upright at knee height and step into it so it sits across the back of both knees.'],
+ steps:['Walk back until the band is tight and lean your weight into it.','Sit straight down, keeping your shins vertical and your torso upright.','Go to about parallel, hold two seconds, stand up.'],
+ tips:['The band pulling backwards is what lets you stay upright — trust it and lean in.','This is the single most useful drill for a grumpy knee. Three sets of ten, slow.'],
+ watch:'spanish squat knee rehab band'},
+
+'Terminal Knee Extension':{pose:'hack',kit:'Band, or the cable stack on a light setting',brief:'Strengthens the last few degrees of straightening',
+ setup:['Band around a rack upright at knee height, looped behind the knee, facing the anchor.'],
+ steps:['Step back so the band pulls your knee forward into a slight bend.','Straighten the knee fully against the band, squeezing the quad at the top.','Hold one second, release slowly.'],
+ tips:['Small movement, big effect. The range is only a few inches.','Keep your heel down throughout.'],
+ watch:'terminal knee extension band exercise'},
+
+'Slow Step-down':{pose:'split',kit:'A step or plate',brief:'Trains the knee to control load on the way down',
+ setup:['Stand on a step, one foot on the edge, the other hanging free.'],
+ steps:['Lower yourself over three full seconds until the free heel just touches the floor.','Do not put weight on it — tap and come back up.','Keep the knee tracking over the middle of your foot.'],
+ tips:['Start on the lowest step. Height is the difficulty dial.','Watch the knee — if it drifts inwards, lower the step or hold a rack for balance.'],
+ watch:'eccentric step down knee exercise'},
+
+'Couch Stretch':{pose:'hipstretch',kit:'A wall + floor mat',brief:'The quad and hip flexor, properly',
+ setup:['Kneel facing away from a wall with a mat under your knee. Slide the shin of the back leg up the wall.'],
+ steps:['Bring the other foot forward into a lunge, flat on the floor.','Squeeze the glute of the back leg and tuck your tailbone under — this is what makes it work.','Sit tall. Hold 60 seconds, then swap.'],
+ tips:['Almost everyone arches their lower back here and feels nothing. The tuck is not optional.','Start with your back knee further from the wall and work closer over weeks.'],
+ watch:'couch stretch hip flexor quad'},
+
+'Knee-to-Wall Ankle Rock':{pose:'calfstretch',kit:'A wall',brief:'The measure and the fix for stiff ankles',
+ setup:['Stand facing a wall with the toes of one foot about a hand-width from it.'],
+ steps:['Keeping your heel flat on the floor, drive your knee forward to touch the wall.','If it touches easily, shuffle back an inch and try again.','Rock in and out slowly for 10 reps, then swap.'],
+ tips:['Heel lifting off the floor is cheating and makes the drill pointless.','Five inches from the wall with the heel down is a reasonable target. Most people start around three.'],
+ watch:'knee to wall ankle mobility test'},
+
+'Ankle CARs':{pose:'rotate',kit:'Nothing',brief:'Slow controlled circles through the full ankle range',
+ setup:['Sit or stand with one foot off the floor.'],
+ steps:['Point the toes down as far as they go.','Circle slowly outward, then up towards your shin, then inward.','Ten slow circles each direction, then swap feet.'],
+ tips:['Slow enough that you could stop at any point. Speed hides the stiff bits.','Keep the knee still — this is the ankle only.'],
+ watch:'ankle CARs controlled articular rotations'},
+
+'Single-leg Balance':{pose:'hold',kit:'Nothing',brief:'Rebuilds the ankle and foot control that stops rolls',
+ setup:['Stand near a wall in case you need it.'],
+ steps:['Stand on one leg with a soft knee.','Hold 30 seconds, staying as still as you can.','When that is easy, close your eyes. When that is easy, do it on a folded mat.'],
+ tips:['Wobbling is the training effect, not a failure.','On a basketball court this is the difference between a rolled ankle and a near-miss.'],
+ watch:'single leg balance ankle stability progression'},
+
+'Toe Yoga':{pose:'hold',kit:'Nothing',brief:'Separates the big toe from the rest — better push-off and arch control',
+ setup:['Sit or stand with both feet flat on the floor.'],
+ steps:['Press the big toe down and lift the other four.','Hold three seconds, then reverse — big toe up, other four down.','Ten each way per foot.'],
+ tips:['This is genuinely hard at first and looks like nothing is happening. Keep going, it comes.'],
+ watch:'toe yoga foot exercise'},
+
+'Wrist CARs':{pose:'armcircle',kit:'Nothing',brief:'Full-range wrist circles under control',
+ setup:['Extend one arm in front, elbow locked, fist lightly closed.'],
+ steps:['Circle the fist slowly through the biggest range you have.','Keep the forearm and elbow completely still.','Ten each direction, then swap.'],
+ tips:['If the elbow moves, the wrist is not doing the work. Hold it with your other hand.'],
+ watch:'wrist CARs mobility drill'},
+
+'Wrist Rocks':{pose:'hold',kit:'Floor mat',brief:'Loads the wrist into extension and flexion gradually',
+ setup:['On hands and knees, hands under shoulders, fingers pointing forwards.'],
+ steps:['Keeping palms down, rock your weight forwards over your hands, then back.','Ten slow rocks.','Turn the hands to point backwards and repeat, more gently.','Then flip to the backs of the hands, fingers pointing towards your knees, and rock lightly.'],
+ tips:['Backs-of-hands is the one to ease into. Take a fraction of your weight at first.','Build this and front squats, presses and hangs all stop bothering your wrists.'],
+ watch:'wrist mobility rocks warm up'},
+
+'Reverse Wrist Curl':{pose:'curl',kit:'One light dumbbell',brief:'The forearm side almost nobody trains',
+ setup:['Sit with your forearm resting along your thigh, palm facing down, wrist just past your knee.'],
+ steps:['Let the weight roll the wrist down as far as it goes.','Curl the back of your hand up towards your forearm.','Hold one second at the top, lower over three.'],
+ tips:['Go far lighter than feels sensible — 2 to 5kg is a working weight here.','This is the fix for the ache on the outside of the elbow.'],
+ watch:'reverse wrist curl forearm exercise'},
+
+'Wrist Curl':{pose:'curl',kit:'One light dumbbell',brief:'Balances the reverse curl',
+ setup:['Same position, palm facing up.'],
+ steps:['Let the weight open the hand and roll to the fingertips.','Curl it back up, closing the hand, then flex the wrist.','Lower slowly.'],
+ tips:['Rolling to the fingertips is what trains grip through the full range — do not skip it.'],
+ watch:'dumbbell wrist curl form'},
+
+'Finger Extension':{pose:'pullapart',kit:'A light band, or a thick elastic band',brief:'Opens the hand against resistance — balances all the gripping',
+ setup:['Loop a band around all five fingertips.'],
+ steps:['Spread the fingers open against the band.','Hold two seconds, close slowly.','Fifteen to twenty reps a hand.'],
+ tips:['Every lift you do closes the hand. Nothing opens it, which is why forearms get tight and elbows get sore.'],
+ watch:'finger extension band exercise'},
+
+'McGill Curl-up':{pose:'abs',kit:'Floor mat',brief:'Trains the abs without loading the lower back',
+ setup:['Lie on your back, one knee bent with that foot flat, the other leg straight.','Hands under your lower back, palms down, to keep its natural arch.'],
+ steps:['Lift your head, neck and shoulders as one rigid block, about an inch off the floor.','Do not tuck the chin or flatten your back.','Hold ten seconds, breathing normally, then lower.'],
+ tips:['The range is tiny. If you are sitting up, you are doing a sit-up and defeating the point.','Swap which knee is bent halfway through the set.'],
+ watch:'mcgill curl up technique'},
+
+'Prone Press-up':{pose:'bridge',kit:'Floor mat',brief:'Gentle extension — often settles a stiff, achy lower back',
+ setup:['Lie face down, hands under your shoulders as if to press up.'],
+ steps:['Press your upper body up while keeping your hips on the floor.','Go only as far as is comfortable and hold two seconds.','Lower fully and repeat ten times.'],
+ tips:['Relax your backside and legs completely — let the arms do all of it.','If it makes leg symptoms worse rather than better, stop and tell me.'],
+ watch:'prone press up extension back exercise'},
+
+'Hip Hinge Drill':{pose:'hinge',kit:'Olympic bar or a broomstick',brief:'Teaches the back to stay neutral while the hips move',
+ setup:['Hold a bar vertically against your back, touching the back of your head, your upper back and your tailbone.'],
+ steps:['Grip it at the neck and the small of your back.','Push your hips backwards, letting your knees soften slightly.','Keep all three contact points touching the whole way down.','Go as far as you can without losing one, then drive the hips forward to stand.'],
+ tips:['Losing the head or tailbone contact tells you exactly where your hinge breaks down.','Ten reps of this before deadlifts is worth more than any stretch.'],
+ watch:'dowel hip hinge drill'},
+
+'Wall Slides':{pose:'ohp',kit:'A wall',brief:'The first drill for shoulders that sit forward',
+ setup:['Stand with your back, head and backside against a wall, feet a foot or so out from it.'],
+ steps:['Put your forearms on the wall, elbows at about 90°, in a goalpost shape.','Flatten your lower back towards the wall by tucking your tailbone slightly.','Slide the arms up the wall, keeping wrists and elbows in contact.','Go as high as you can hold contact, then slide back down.'],
+ tips:['Losing contact or arching the lower back is where everyone cheats. Reduce the range instead.','Ten slow reps. It will feel like almost nothing and your shoulders will feel different afterwards.'],
+ watch:'wall slides shoulder mobility'},
+
+'Face Pull':{pose:'row',kit:'Life Fitness dual adjustable pulley, high setting',brief:'The single best thing for the back of the shoulder',
+ setup:['Set the pulley just above head height with a rope attachment.'],
+ steps:['Take an overhand grip on both ends of the rope, step back until the cable is tight.','Pull the rope towards your forehead, splitting your hands apart as you go.','Finish with your knuckles beside your ears and your shoulder blades squeezed.','Return slowly under control.'],
+ tips:['Light weight, high reps — 15 to 20. This is not a strength lift.','Elbows should stay high, at or above shoulder height.','Two or three sets a week and round-shouldered posture starts to unwind.'],
+ watch:'face pull proper form rear delt'},
+
+'Prone Y-T-W':{pose:'pullapart',kit:'Floor mat, or an incline bench',brief:'Wakes up the muscles that hold your shoulder blades in place',
+ setup:['Lie face down on the floor or on an incline bench set to about 30°.'],
+ steps:['Arms out overhead in a Y, thumbs up. Lift them off the floor, hold two seconds, lower.','Arms straight out to the sides in a T. Lift, hold, lower.','Elbows bent, arms in a W beside your ribs. Squeeze the shoulder blades, hold, lower.','Eight reps of each, no weight to begin with.'],
+ tips:['Shrugging is the fault. Keep your shoulders pulled away from your ears throughout.','Add 1–2kg only once you can do all three without shrugging.'],
+ watch:'prone Y T W shoulder exercise'},
+
+'Thoracic Extension over a Bench':{pose:'bridge',kit:'A bench or step',brief:'Undoes a day of sitting at a desk',
+ setup:['Kneel in front of a bench, elbows on it, hands together.'],
+ steps:['Let your chest sink towards the floor between your arms.','Keep your lower back from arching — the movement is upper back only.','Breathe out at the bottom and let it sink a little further.','Hold 30 seconds, come out, repeat.'],
+ tips:['Ribs flaring means the lower back has taken over. Gently brace to stop it.'],
+ watch:'thoracic extension over bench stretch'},
+
+'Chin Tuck':{pose:'hold',kit:'Nothing',brief:'For the head-forward position that comes with a phone',
+ setup:['Sit or stand tall.'],
+ steps:['Without tilting your head, slide it straight backwards, making a double chin.','Hold five seconds.','Release. Ten reps.'],
+ tips:['It should feel like the base of your skull lengthening, not like looking down.','Do it at traffic lights and it costs you nothing.'],
+ watch:'chin tuck neck posture exercise'},
+
+'Easy Swim':{pose:'cardio',kit:'Swimming pool',brief:'Blood flow with nothing landing on your joints',
+ setup:['Any stroke you can hold a conversation in.'],
+ steps:['Swim continuously at a pace that feels genuinely easy.','Stop and change stroke whenever it stops being easy.','10 to 20 minutes total.'],
+ tips:['This is not a training session. If you are out of breath, slow down.','Front crawl loads the shoulders — if they are the thing that is sore, use breaststroke or backstroke.'],
+ watch:'easy recovery swim technique'},
+
+'Water Walking':{pose:'cardio',kit:'Swimming pool',brief:'Loaded movement with most of your bodyweight taken off',
+ setup:['Chest-deep water in the shallow end.'],
+ steps:['Walk forwards for a length, taking long deliberate strides.','Walk backwards for a length.','Then sideways, both directions.','Five to ten minutes.'],
+ tips:['Deeper water means less load. If a joint is irritable, go deeper.','Push against the water rather than drifting — the resistance is the point.'],
+ watch:'water walking pool rehabilitation'},
+
+'Flutter Kick on a Board':{pose:'cardio',kit:'Swimming pool + kickboard',brief:'Hips and ankles moving freely, no impact',
+ setup:['Hold a float out in front of you, face down or on your back.'],
+ steps:['Kick from the hip with fairly straight legs and loose ankles.','Small fast kicks rather than big slow ones.','Two or three lengths, rest, repeat.'],
+ tips:['Great for ankles — the water moves them through range without any load.','Do not kick from the knee. That is where cramp comes from.'],
+ watch:'flutter kick kickboard technique'},
+
+'Sauna':{pose:'hold',kit:'Sauna',brief:'Heat, relaxation, and a reason to sit still for once',
+ setup:['Take water in with you. Shower first.'],
+ steps:['15 to 20 minutes is plenty.','Come out if you feel light-headed rather than pushing through.','Rehydrate properly afterwards.'],
+ tips:['Fine at any point, including straight after lifting — unlike cold, heat does not blunt training adaptations.','If you are already dehydrated from a game, drink first and keep it short.'],
+ watch:'sauna recovery benefits training'},
+
+'Steam Room':{pose:'hold',kit:'Steam room',brief:'Gentler than the sauna, easier on the airways',
+ setup:['Shower first. Take water.'],
+ steps:['10 to 15 minutes.','Breathe slowly and let your shoulders drop.'],
+ tips:['Lower temperature than the sauna but the humidity makes it feel similar.'],
+ watch:'steam room benefits recovery'},
+
+'Hot Tub':{pose:'hold',kit:'Hot tub',brief:'Warm water and jets on whatever is stiff',
+ setup:['Ten to fifteen minutes is the useful window.'],
+ steps:['Sit so the jets hit the area that is tight.','Move the joint gently while you are in there — heat plus movement beats heat alone.'],
+ tips:['Good the evening after a game.','Not a substitute for the stretching, but a decent place to do some of it.'],
+ watch:'hot tub recovery after training'},
+
+'Massage Gun':{pose:'hold',kit:'Massage gun — by the mats',brief:'Fast, targeted, and easy to overdo',
+ setup:['Lowest setting to start.'],
+ steps:['Run it over the muscle, not the joint or the bone.','60 to 90 seconds per area is enough.','Stop if it is sharp rather than achy.'],
+ tips:['Never on a fresh injury or anywhere bruised.','It buys you 20 minutes of better range — use that window to stretch, do not just put it down.'],
+ watch:'massage gun how to use properly'}
+};
+Object.assign(GUIDE,MOBILITY_GUIDE);
+
+/* ------------------------------------------------------------
+   RECOVERY SESSIONS
+   Same idea as the random workout, aimed at keeping you on the
+   court rather than adding training load. Nothing here should
+   leave you tired.
+   ------------------------------------------------------------ */
+const RECOVERY_TARGETS=[
+  {k:'all', t:'All-rounder', why:'A bit of everything — spine, hips, shoulders, ankles. The default when nothing in particular hurts.',
+   floor:[['Cat–Cow','8 slow cycles'],['Open Book Rotation','8 each side'],['90/90 Hip Switch','10 switches'],
+          ['World’s Greatest Stretch','5 each side'],['Deep Squat Hold','2 × 45s'],['Dead Hang','3 × 30s'],
+          ['Bird Dog','8 each side'],['Hip Adduction','2 × 15'],['Knee-to-Wall Ankle Rock','10 each side']]},
+  {k:'knee', t:'Knee', why:'Isometrics and slow lowering. This is what settles an irritable knee — not rest, and not stretching it.',
+   floor:[['Wall Sit','3 × 45s'],['Spanish Squat','3 × 10 slow'],['Terminal Knee Extension','2 × 15 each'],
+          ['Slow Step-down','3 × 8 each side'],['Seated Leg Extension','3 × 20 light'],['Hip Abduction','3 × 18'],
+          ['Standing DB Calf Raise','2 × 15'],['Seated Leg Curl','2 × 12 light'],
+          ['Couch Stretch','60s each side'],['Deep Squat Hold','2 × 45s']]},
+  {k:'wrist', t:'Wrists', why:'Everything you lift closes the hand. This opens it again and loads the wrist through its full range.',
+   floor:[['Wrist CARs','10 each direction'],['Wrist Rocks','10 each position'],['Reverse Wrist Curl','3 × 15 light'],
+          ['Wrist Curl','3 × 15 light'],['Finger Extension','3 × 20'],['Dead Hang','3 × 30s']]},
+  {k:'back', t:'Back', why:'Control and gentle extension rather than stretching. A back that aches usually needs stability, not more range.',
+   floor:[['Cat–Cow','8 slow cycles'],['Prone Press-up','10 reps'],['Bird Dog','8 each side'],['Dead Bug','8 each side'],
+          ['McGill Curl-up','5 × 10s hold'],['Hip Hinge Drill','10 reps'],['Dead Hang','3 × 30s'],['90/90 Hip Switch','10 switches']]},
+  {k:'ankle', t:'Ankle', why:'The joint that decides how deep you squat and how often you roll one on court.',
+   floor:[['Knee-to-Wall Ankle Rock','15 each side'],['Ankle CARs','10 each direction'],['Single-leg Balance','3 × 30s each'],
+          ['Toe Yoga','10 each way'],['Standing DB Calf Raise','3 × 15'],['Single-leg Step Calf Raise','2 × 12 each'],
+          ['Hip Abduction','3 × 18'],['Deep Squat Hold','2 × 45s']]},
+  {k:'posture', t:'Posture', why:'Getting the shoulders back where they belong. Upper back and the muscles that hold the shoulder blades down.',
+   floor:[['Wall Slides','10 slow reps'],['Band or cable pull-aparts','3 × 20'],['Face Pull','3 × 18 light'],
+          ['Prone Y-T-W','8 of each'],['Thoracic Extension over a Bench','3 × 30s'],['Open Book Rotation','8 each side'],
+          ['Doorway or cable chest stretch','45s each side'],['Chin Tuck','10 × 5s']]}
+];
+// Pool and spa work is the same whatever is sore — the venue is the point.
+const REC_POOL=[['Easy Swim','10–15 min'],['Water Walking','5 min, all directions'],
+                ['Flutter Kick on a Board','4 lengths'],['Deep Squat Hold','3 × 30s in chest-deep water']];
+const REC_SPA=[['Sauna','15–20 min'],['Steam Room','10–15 min'],['Hot Tub','10–15 min'],['Massage Gun','90s per tight area']];
+const REC_VENUE=[{k:'floor',t:'Gym floor'},{k:'pool',t:'Pool'},{k:'spa',t:'Spa'}];
+const REC_MINS={10:4,15:5,20:6,30:8};
+
+function genRecovery(targetKey,mins,venue){
+  const T=RECOVERY_TARGETS.find(t=>t.k===targetKey)||RECOVERY_TARGETS[0];
+  const src = venue==='pool'?REC_POOL : venue==='spa'?REC_SPA : T.floor;
+  const n=Math.min(REC_MINS[mins]||5, src.length);
+  const pool=[...src], picked=[];
+  // keep the listed order — these are sequenced deliberately, not random
+  for(let i=0;i<n;i++) picked.push(pool[i]);
+  return {mode:'recovery', focus:targetKey, focusLabel:T.t+' recovery', venue, mins,
+          intensity:'easy', rpeNote:T.why,
+          ex:picked.map(([n2,dose])=>({n:n2,k:slug(n2),t:dose}))};
+}
+
 const POOL={
   legs:['Back Squat','Linear Hack Squat','Seated Leg Press','Goblet Squat','Dumbbell Romanian Deadlift',
         'Seated Leg Curl','Single-leg DB RDL','Standing DB Calf Raise','Leg Press Calf Raise'],
@@ -3243,6 +3580,316 @@ function adhocWarning(w){
 }
 
 function adhocList(ds){ const a=DB.adhoc[ds]; return Array.isArray(a)?a:(a?[a]:[]); }
+
+/* ============================================================
+   EQUIPMENT LIBRARY
+   ------------------------------------------------------------
+   Everything on the floor and in the wider club, what each one
+   is for, and — derived, not hand-maintained — which exercises
+   in your programme use it. Links are matched against the `kit`
+   line on each guide, so adding an exercise wires it up here
+   automatically, and adding equipment wires it the other way.
+   ============================================================ */
+const EQUIP=[
+  // ---- cardio ----
+  {id:'treadmill', n:'Treadmill', cat:'Cardio', targets:'Whole body · aerobic',
+   p:'Warm-ups, easy conditioning and incline walking. Incline walking is the underrated one — aerobic work with almost none of the joint cost of running.', m:['treadmill']},
+  {id:'cross', n:'Cross trainer', cat:'Cardio', targets:'Whole body · aerobic',
+   p:'Low-impact aerobic work. Worth knowing: it is a machine, not a bike — cycling is the one thing your knee objects to, and this is not that.', m:['cross trainer']},
+  {id:'skierg', n:'SkiERG', cat:'Cardio', targets:'Lats, triceps, core · aerobic',
+   p:'Upper-body conditioning that spares the legs entirely. The best cardio option the day before a game.', m:['skierg']},
+  {id:'rower', n:'Rower', cat:'Cardio', targets:'Legs, back, arms · aerobic',
+   p:'Full-body conditioning. Fine for warm-ups; a hard rowing session competes with legs, so keep it away from Friday.', m:['rower']},
+
+  // ---- racks and free weights ----
+  {id:'rack', n:'Squat rack (Olympic)', cat:'Racks & free weights', targets:'Legs, back, whole body',
+   p:'Where the main strength work happens. Set the safety bars every time — they are what let you push a heavy set without a spotter.', m:['rack + olympic bar','hammer strength rack']},
+  {id:'benchstation', n:'Bench press station (fixed height)', cat:'Racks & free weights', targets:'Chest, shoulders, triceps',
+   p:'Flat barbell pressing. The uprights are fixed, so if the unrack feels awkward use dumbbells on an adjustable bench instead.', m:['olympic bench press']},
+  {id:'bench', n:'Adjustable benches', cat:'Racks & free weights', targets:'Support for pressing and rowing',
+   p:'Flat, incline, upright. Incline at about 30° hits the upper chest; steeper than 45° and it becomes a shoulder press.', m:['adjustable bench','upright bench','+ bench','a bench or step','preacher bench','bench or step']},
+  {id:'dumbbells', n:'Dumbbells', cat:'Racks & free weights', targets:'Everything',
+   p:'The most useful rack in the building. Each side works independently, so they find and fix left-right differences that a barbell hides.', m:['dumbbell']},
+  {id:'barbell', n:'Olympic bars & plates', cat:'Racks & free weights', targets:'Everything',
+   p:'The bar is 20kg on its own. Smallest plates on the rack are 1.25kg, so the smallest jump you can make either side is 2.5kg total.', m:['olympic bar','ez bar','ez-bar']},
+  {id:'pullupbar', n:'Pull-up bar', cat:'Racks & free weights', targets:'Back, arms, grip, shoulders',
+   p:'Chin-ups when you can, dead hangs when you cannot. Hanging is one of the best things you can do for a stiff shoulder or a compressed back.', m:['pull-up bar','rack or pull-up']},
+
+  // ---- plate-loaded ----
+  {id:'inclinepress', n:'Incline press (plate-loaded)', cat:'Plate-loaded', targets:'Upper chest, front shoulders, triceps',
+   p:'Chest pressing with a fixed path, so you can push closer to failure without a spotter. Load it yourself — the arms move independently.', m:['plate-loaded incline press']},
+  {id:'ploadrow', n:'Chest-supported row (plate-loaded)', cat:'Plate-loaded', targets:'Mid-back, lats, rear shoulders',
+   p:'The pad takes your lower back out of the movement entirely, which is why this is the row to use on a day your back is grumbling.', m:['chest-supported row']},
+  {id:'hack', n:'Linear hack squat', cat:'Plate-loaded', targets:'Quads, glutes',
+   p:'Heavy leg work with your back supported. A good substitute for the barbell squat when you are tired or short on time.', m:['linear hack squat']},
+
+  // ---- selectorised ----
+  {id:'selchest', n:'Chest press', cat:'Pin-loaded machines', targets:'Chest, front shoulders, triceps',
+   p:'Set the handles level with the middle of your chest. Too high and it quietly becomes a shoulder press.', m:['selectorised chest press']},
+  {id:'pecfly', n:'Pectoral fly', cat:'Pin-loaded machines', targets:'Chest',
+   p:'Isolation for the chest — stretch and squeeze rather than load. Useful accessory work, never a main lift.', m:['pectoral fly','pec fly']},
+  {id:'selrow', n:'Seated row', cat:'Pin-loaded machines', targets:'Mid-back, lats, biceps',
+   p:'Chest against the pad, pull to the ribs, squeeze the shoulder blades. Pull with the elbows, not the hands.', m:['life fitness seated row']},
+  {id:'pulldown2', n:'Pulldown (second station)', cat:'Pin-loaded machines', targets:'Lats, biceps',
+   p:'A second pulldown angle. Handy when the lat pulldown is taken, and a slightly different pull is no bad thing.', m:['second pulldown station']},
+  {id:'selohp', n:'Shoulder press', cat:'Pin-loaded machines', targets:'Shoulders, triceps',
+   p:'Overhead pressing with the back supported. Kinder on the lower back than standing, and easier to push hard on.', m:['life fitness shoulder press']},
+  {id:'legext', n:'Leg extension', cat:'Pin-loaded machines', targets:'Quads',
+   p:'Direct quad work. Light and high-rep, this is one of the better things for a knee that is complaining — despite its reputation.', m:['leg extension']},
+  {id:'legpress', n:'Seated leg press', cat:'Pin-loaded machines', targets:'Quads, glutes',
+   p:'Heavy leg work with no load on your spine. Do not let your lower back round off the pad at the bottom — that is where people hurt themselves.', m:['life fitness leg press','leg press']},
+  {id:'legcurl', n:'Seated leg curl', cat:'Pin-loaded machines', targets:'Hamstrings',
+   p:'The hamstrings mostly get worked as hinge assistants. This trains their other job — bending the knee — which matters for sprinting and for knee resilience.', m:['seated leg curl']},
+  {id:'hipadd', n:'Hip adduction (inwards)', cat:'Pin-loaded machines', targets:'Groin / inner thigh',
+   p:'Squeezing the legs together. Strong adductors are one of the better-evidenced protections against groin strains in court sports.', m:['hip adduction']},
+  {id:'hipabd', n:'Hip abduction (outwards)', cat:'Pin-loaded machines', targets:'Glute medius, outer hip',
+   p:'Pushing the legs apart. This is the muscle that stops your knee falling inwards when you land — directly relevant to both knees and ankles.', m:['hip abduction']},
+  {id:'abs', n:'Abdominal machine', cat:'Pin-loaded machines', targets:'Abs',
+   p:'Loaded trunk flexion. Fine as accessory work, though anti-rotation and anti-extension work carries over to basketball better.', m:['abdominal machine']},
+  {id:'assisteddip', n:'Assisted dip', cat:'Pin-loaded machines', targets:'Chest, triceps, front shoulders',
+   p:'Counterweighted, so a higher number on the stack means more help, not more work. Reduce it as you get stronger.', m:['assisted dip','machine or assisted dip','assisted dip / chin']},
+  {id:'assistedchin', n:'Assisted chin-up', cat:'Pin-loaded machines', targets:'Lats, biceps',
+   p:'Same logic — the stack is help, not load. The route to an unassisted chin-up is to take weight off the stack over months.', m:['assisted chin']},
+  {id:'latpulldown', n:'Lat pulldown', cat:'Pin-loaded machines', targets:'Lats, biceps',
+   p:'Your main vertical pull. Pull the bar to your collarbone with your chest up, not behind your neck.', m:['lat pulldown']},
+
+  // ---- cable ----
+  {id:'cable', n:'Dual adjustable pulley', cat:'Cables', targets:'Everything · constant tension',
+   p:'The most versatile station here. Height-adjustable both sides, so it covers rows, pushdowns, face pulls, chest flyes and anti-rotation core work.', m:['dual adjustable pulley','cable stack']},
+  {id:'cablelow', n:'Cable low row', cat:'Cables', targets:'Mid-back, lats, biceps',
+   p:'Pulley set low. Constant tension through the whole pull, unlike a machine row which is easiest at the ends.', m:['pulley, low setting']},
+  {id:'cablecross', n:'Cable crossover', cat:'Cables', targets:'Chest, front shoulders',
+   p:'Pulley set high. Chest isolation with tension all the way through the squeeze — the thing a press cannot give you.', m:['pulley, high setting']},
+
+  // ---- floor space ----
+  {id:'steps', n:'Steps & plates', cat:'Floor space', targets:'Calves, single-leg work, balance',
+   p:'Step height is the difficulty dial on single-leg work — start low and raise it over weeks rather than adding weight.', m:['a step','step or plate','on a step']},
+  {id:'bands', n:'Resistance bands', cat:'Floor space', targets:'Rehab, warm-ups, shoulders',
+   p:'Resistance rises as they stretch, which is exactly what you want for shoulder and knee rehab work. By the mats.', m:['band']},
+  {id:'mats', n:'Mats & stretching area', cat:'Floor space', targets:'Mobility, core, warm-ups',
+   p:'Where every recovery session lives. Also the right place for core work, warm-ups and anything on the floor.', m:['floor mat','stretching area']},
+  {id:'massagegun', n:'Massage guns', cat:'Floor space', targets:'Soft tissue',
+   p:'Buys you about twenty minutes of better range. Use that window to stretch — do not just put it down.', m:['massage gun']},
+
+  // ---- wider facilities ----
+  {id:'pool', n:'Swimming pool', cat:'Wider facilities', targets:'Whole body · zero impact',
+   p:'Indoor and heated outdoor. The best place to keep moving when a joint will not tolerate load — you can train the pattern without the bodyweight.', m:['swimming pool','kickboard']},
+  {id:'sauna', n:'Sauna', cat:'Wider facilities', targets:'Recovery',
+   p:'Finnish, fire & ice, citrus and salt. Fine at any point including straight after lifting — heat, unlike cold, does not blunt training adaptations.', m:['sauna']},
+  {id:'steam', n:'Steam room', cat:'Wider facilities', targets:'Recovery',
+   p:'Gentler than the sauna and easier on the airways.', m:['steam room']},
+  {id:'hottub', n:'Hot tub', cat:'Wider facilities', targets:'Recovery',
+   p:'Warm water and jets. Good the evening after a game, and a decent place to do some of your stretching.', m:['hot tub']},
+  {id:'plunge', n:'Cold plunge', cat:'Wider facilities', targets:'Recovery',
+   p:'10°C. Genuinely useful after basketball. Not within about four hours of lifting — cold blunts the adaptations you just trained for.', m:['cold plunge']},
+  {id:'courts', n:'Racket courts', cat:'Wider facilities', targets:'Whole body · movement',
+   p:'Tennis, badminton, squash, pickleball. Good movement, but it is a hard session on the legs — watch where it lands relative to a game.', m:['racket','court']},
+  {id:'studio', n:'Class studio', cat:'Wider facilities', targets:'Conditioning',
+   p:'Where BLAZE runs. 45 minutes of HIIT, boxing, treadmill and strength — a genuinely hard session, so treat it as one when planning the week.', m:['studio']}
+];
+
+// exercise ↔ equipment, both directions, derived from the guides
+const EQUIP_EX=(()=>{
+  const map={}; EQUIP.forEach(e=>map[e.id]=[]);
+  Object.keys(GUIDE).forEach(n=>{
+    const kit=(GUIDE[n].kit||'').toLowerCase();
+    if(!kit||kit==='nothing') return;
+    EQUIP.forEach(e=>{ if(e.m.some(k=>kit.includes(k))) map[e.id].push(n); });
+  });
+  Object.keys(map).forEach(k=>map[k].sort());
+  return map;
+})();
+const EX_EQUIP=(()=>{
+  const map={};
+  Object.keys(EQUIP_EX).forEach(id=>EQUIP_EX[id].forEach(n=>{ (map[n]=map[n]||[]).push(id); }));
+  return map;
+})();
+const EQ_CATS=[...new Set(EQUIP.map(e=>e.cat))];
+
+function vEquipment(){
+  const q=(Store.get('coach.eqQ','')||'').toLowerCase();
+  const fCat=Store.get('coach.eqCat','All');
+  let items=EQUIP.slice();
+  if(fCat!=='All') items=items.filter(e=>e.cat===fCat);
+  if(q) items=items.filter(e=>e.n.toLowerCase().includes(q)||e.targets.toLowerCase().includes(q)
+    ||e.p.toLowerCase().includes(q)||EQUIP_EX[e.id].some(n=>n.toLowerCase().includes(q)));
+
+  let h=backBar();
+  h+=`<div class="card">
+    <input id="eqQ" placeholder="Search equipment, muscles, exercises…" value="${q}" oninput="eqSearch(this.value)">
+    <div class="chips mt">${['All',...EQ_CATS].map(c=>
+      `<button class="chip${c===fCat?' on':''}" onclick="libSet('eqCat','${c}')">${c}</button>`).join('')}</div>
+    <div class="muted mt">${items.length} of ${EQUIP.length}</div>
+  </div>`;
+
+  if(!items.length){
+    h+=`<div class="card"><div class="muted">Nothing matches. Try clearing a filter.</div></div>`;
+    view.innerHTML=h; return;
+  }
+  let group='';
+  items.forEach(e=>{
+    if(e.cat!==group){ group=e.cat; h+=`<h3 class="mt2" style="margin-bottom:8px">${group}</h3>`; }
+    const ex=EQUIP_EX[e.id];
+    h+=`<div class="card"><div class="row"><div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:15px">${e.n}</div>
+        <div class="muted" style="margin-top:2px">${e.targets}</div>
+      </div></div>
+      <div class="note" style="margin-top:9px">${e.p}</div>
+      ${ex.length?`<div style="margin-top:11px"><div class="f" style="margin-bottom:6px">What you do on it</div>
+        <div class="eqEx">${ex.map(n=>`<button class="chip" onclick="openGuide(${JSON.stringify(n).replace(/"/g,'&quot;')})">${n}</button>`).join('')}</div></div>`
+        :`<div class="muted" style="margin-top:10px;font-size:12.5px">Nothing in your programme uses this yet.</div>`}
+    </div>`;
+  });
+  view.innerHTML=h;
+}
+window.goEquip=id=>{
+  const e=EQUIP.find(x=>x.id===id); if(!e) return;
+  Store.set('coach.eqCat',e.cat); Store.set('coach.eqQ',e.n);
+  TAB='more'; MORE='equipment'; window.scrollTo(0,0); render();
+};
+let EQT=null;
+window.eqSearch=v=>{ clearTimeout(EQT); EQT=setTimeout(()=>{ Store.set('coach.eqQ',v); render();
+  const el=document.getElementById('eqQ'); if(el){el.focus();el.setSelectionRange(v.length,v.length);} },250); };
+
+/* ---------- RECOVERY SESSIONS ---------- */
+function recList(ds){ const a=(DB.recovery||{})[ds]; return Array.isArray(a)?a:(a?[a]:[]); }
+let REC_IDX=null, REC_NEW=false;
+window.shiftRecDay=n=>{
+  const d=iso(addD(parse(curDate()),n));
+  VIEW_DATE = d>todayISO()? null : d;
+  REC_IDX=null; REC_NEW=false; render();
+};
+window.openRec=i=>{ REC_IDX=i; window.scrollTo(0,0); render(); };
+window.closeRec=()=>{ REC_IDX=null; REC_NEW=false; window.scrollTo(0,0); render(); };
+window.newRec=()=>{ REC_IDX=null; REC_NEW=true; window.scrollTo(0,0); render(); };
+
+function vRecovery(){
+  const ds=curDate(), isToday=ds===todayISO();
+  const list=recList(ds);
+  let h=backBar();
+
+  h+=`<div class="weeknav" style="margin-bottom:12px">
+    <button onclick="shiftRecDay(-1)">‹</button>
+    <div><div class="wl">${isToday?'Today':fmtD(ds).replace(/^(\w+), /,'$1 ')}</div>
+    <div class="wd">${isToday?'':'logging a past day'}</div></div>
+    <button onclick="shiftRecDay(1)" ${isToday?'disabled style="opacity:.3"':''}>›</button>
+  </div>`;
+
+  /* ---- an open session ---- */
+  if(REC_IDX!=null && list[REC_IDX]){
+    const i=REC_IDX, w=list[i];
+    const done=(DB.bonus[ds]||[]).includes('recovery');
+    const V=REC_VENUE.find(v=>v.k===w.venue);
+    h+=`<div class="card"><div class="row"><div>
+      <h2>${w.focusLabel}</h2>
+      <div class="sec">${V?V.t:''} · ${w.mins} min${list.length>1?` · session ${i+1} of ${list.length}`:''}</div>
+    </div>${done?pill('bonus'):''}</div>
+    <div class="note">${w.rpeNote}</div></div>`;
+
+    h+=`<h3 style="margin:0 0 8px">Work through these</h3>`;
+    w.ex.forEach(x=>{
+      const on=(w.did||{})[x.k];
+      h+=`<div class="card tight recRowItem${on?' done':''}">
+        <button class="tick${on?' on':''}" onclick="recTick('${i}','${x.k}')" aria-label="Mark ${x.n} done">${on?I.check:''}</button>
+        <div style="display:flex;gap:10px;align-items:center;flex:1;min-width:0" onclick="openGuide(${JSON.stringify('').slice(0,0)}${JSON.stringify(x.n).replace(/"/g,'&quot;')})">
+          ${poseIcon(x.n)}
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:14.5px">${x.n}</div>
+            <div class="muted">${x.t}</div>
+          </div>
+          <div class="muted" style="font-size:18px">›</div>
+        </div>
+      </div>`;
+    });
+
+    const nDone=Object.values(w.did||{}).filter(Boolean).length;
+    h+=`<div class="card"><h3>How was that?</h3>
+      <div class="muted mt">${nDone} of ${w.ex.length} done</div>
+      ${feelScaleRec(i,'mood')}
+      <button class="btn ${done?'':'primary'} mt" onclick="finishRec()">${done?'Logged ✓ — tap to undo':'Mark done — earns a ★'}</button>
+    </div>`;
+    h+=`<div class="btnrow mt"><button class="btn ghost" onclick="closeRec()">‹ All sessions</button>
+      <button class="btn danger" onclick="discardRec(${i})">Discard</button></div>`;
+    view.innerHTML=h; return;
+  }
+
+  /* ---- the day's existing sessions ---- */
+  if(list.length && !REC_NEW){
+    h+=`<h3 style="margin:0 0 8px">${list.length} recovery session${list.length===1?'':'s'} ${isToday?'today':'that day'}</h3>`;
+    list.forEach((w,i)=>{
+      const V=REC_VENUE.find(v=>v.k===w.venue);
+      const nDone=Object.values(w.did||{}).filter(Boolean).length;
+      h+=`<div class="card tight libRow" onclick="openRec(${i})">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:14.5px">${w.focusLabel}</div>
+          <div class="muted">${V?V.t:''} · ${w.mins} min · ${nDone} of ${w.ex.length} done</div>
+        </div>
+        <div class="muted" style="font-size:18px">›</div>
+      </div>`;
+    });
+    h+=`<button class="btn ghost mt" onclick="newRec()">Another recovery session</button>`;
+    view.innerHTML=h; return;
+  }
+
+  /* ---- the form ---- */
+  if(REC_NEW && list.length)
+    h+=`<button class="btn ghost" style="margin-bottom:12px" onclick="cancelNewRec()">‹ Back to ${list.length} session${list.length===1?'':'s'}</button>`;
+
+  h+=`<div class="card"><h3>Recovery session</h3>
+    <div class="sec mt">Keeping you on the court rather than adding training load. Nothing here should leave you tired, and none of it counts against a gym session.</div>
+    <div class="mt"><label class="f">What are you looking after</label>
+      <select id="rTarget">${RECOVERY_TARGETS.map(t=>`<option value="${t.k}">${t.t}</option>`).join('')}</select></div>
+    <div class="grid2 mt">
+      <div><label class="f">Where</label>
+        <select id="rVenue">${REC_VENUE.map(v=>`<option value="${v.k}">${v.t}</option>`).join('')}</select></div>
+      <div><label class="f">How long</label>
+        <select id="rMins">${Object.keys(REC_MINS).map(m=>`<option value="${m}"${m==='15'?' selected':''}>${m} min</option>`).join('')}</select></div>
+    </div>
+    <button class="btn primary mt" onclick="rollRecovery()">Build the session</button>
+  </div>`;
+
+  h+=`<div class="card"><h3>What each one is for</h3>
+    <div class="mt">${RECOVERY_TARGETS.map(t=>`<div class="wrow"><div class="wa">${t.t}</div></div>
+      <div class="muted" style="margin:-4px 0 10px 0;font-size:12.5px;line-height:1.5">${t.why}</div>`).join('')}</div>
+  </div>`;
+
+  h+=`<div class="banner b-info">${I.alert}<div>Recovery earns a <b>★</b> like any other extra. It is never one of your four scored sessions, and doing one on a rest day is exactly the point of a rest day.</div></div>`;
+  view.innerHTML=h;
+}
+
+function feelScaleRec(i,field){
+  const w=recList(curDate())[i]||{}, cur=w[field]||0;
+  return `<div class="feel mt">${[1,2,3,4,5].map(v=>`
+    <button class="fbtn${cur===v?' on':''}" onclick="recFeel(${i},'${field}',${v})" aria-label="${MOOD_LABEL[v-1]}">
+      ${face(v)}<span>${MOOD_LABEL[v-1]}</span></button>`).join('')}</div>`;
+}
+window.rollRecovery=()=>{
+  const ds=curDate();
+  const t=document.getElementById('rTarget').value;
+  const v=document.getElementById('rVenue').value;
+  const m=parseInt(document.getElementById('rMins').value);
+  const w=genRecovery(t,m,v);
+  DB.recovery=DB.recovery||{}; DB.recovery[ds]=recList(ds);
+  w.id='r'+ds+'#'+DB.recovery[ds].length; w.did={};
+  DB.recovery[ds].push(w);
+  REC_IDX=DB.recovery[ds].length-1; REC_NEW=false;
+  save(); window.scrollTo(0,0); render();
+};
+window.recTick=(i,k)=>{
+  const w=recList(curDate())[parseInt(i)]; if(!w) return;
+  w.did=w.did||{}; w.did[k]=!w.did[k]; save(); render();
+};
+window.recFeel=(i,f,v)=>{ const w=recList(curDate())[i]; if(!w) return;
+  w[f]= w[f]===v?null:v; save(); render(); };
+window.finishRec=()=>{ toggleBonus(curDate(),'recovery'); };
+window.cancelNewRec=()=>{ REC_NEW=false; render(); };
+window.discardRec=i=>{
+  if(!confirm('Discard this recovery session?')) return;
+  const ds=curDate();
+  DB.recovery[ds]=recList(ds); DB.recovery[ds].splice(i,1);
+  if(!DB.recovery[ds].length) delete DB.recovery[ds];
+  REC_IDX=null; save(); render();
+};
 
 function vRandom(){
   const ds=curDate(), isToday=ds===todayISO();
