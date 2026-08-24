@@ -180,6 +180,25 @@ svg.chart{width:100%;display:block;overflow:visible;touch-action:none}
 .rungLabel:focus{outline:none;border-bottom-color:var(--green)}
 .bar{height:5px;background:var(--surface-2);border-radius:999px;margin-top:9px;overflow:hidden}
 .bar div{height:100%;background:var(--green);border-radius:999px}
+
+/* warm-up / stretch rows + recovery picker */
+.wrow{padding:9px 0;border-top:1px solid var(--hair)}
+.wrow:first-of-type{border-top:0}
+.wa{font-weight:600;font-size:14px}
+.wb{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.45}
+.recRow{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px}
+.recBtn{background:var(--surface-2);border:1px solid var(--border);color:var(--ink-2);
+  border-radius:10px;padding:10px 2px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+.recBtn.on{background:var(--green-dim);border-color:var(--green);color:var(--green)}
+.recBtn:active{opacity:.65}
+
+/* set table headers */
+.setHead{display:grid;grid-template-columns:22px 1fr 1fr;gap:7px;margin-top:10px;padding:0 2px}
+.setHead div{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.setHead div:first-child{text-align:center}
+.addSet{background:transparent;border:1px dashed var(--border);color:var(--ink-2);border-radius:9px;
+  padding:7px;font:inherit;font-size:12.5px;font-weight:600;width:100%;margin-top:8px;cursor:pointer}
+.addSet:active{opacity:.6}
 .rung.hit .bar div{background:var(--green)}
 .feel{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:10px}
 .fbtn{background:var(--surface-2);border:1px solid var(--border);border-radius:11px;padding:9px 2px 7px;
@@ -258,7 +277,7 @@ const Store=(()=>{
 let START='2026-08-24';             // Monday of week 1 — overridden per profile
 const PROGRAMME_M={
   gymA:{
-    id:'gymA', label:'Gym — Day A', sub:'Lower-body led · main strength session',
+    id:'gymA', label:'Gym — Lower', sub:'Legs and hinge · main strength session',
     ex:[
       {n:'Back Squat', t:'3 × 5', k:'squat',
        note:'RPE 8 — the main strength driver. Olympic rack. Goblet squat for the first 2–3 weeks if technique needs work.',
@@ -299,7 +318,7 @@ const PROGRAMME_M={
     tip:'Friday sits 3 days before Monday’s game — the most recovery any slot gives your legs before the session that matters most. You are 24h off Thursday’s game so you will not feel fresh; train to a solid RPE 8, do not chase a PR on tired legs.'
   },
   gymB:{
-    id:'gymB', label:'Gym — Day B', sub:'Upper-body led · legs kept fresh',
+    id:'gymB', label:'Gym — Upper', sub:'Push and pull · legs kept fresh',
     ex:[
       {n:'Shoulder Press', t:'3 × 6–8', k:'ohp',
        note:'Pin-loaded machine. Press without letting the ribs flare.',
@@ -331,12 +350,12 @@ const PROGRAMME_M={
       {n:'Farmer’s Carry', t:'2 × 20–30m', k:'carry',
        note:'Heavy DBs or kettlebells. Tall posture, brace, walk. Grip and trunk with minimal leg cost.',
        alts:[
-        {n:'Suitcase Carry',   note:'One DB only, 2 × 20m/side. Harder on the trunk than a two-handed carry.'},
+        {n:'Suitcase Lunge',   note:'One DB at your side, 2 × 8/leg. Adds a single-leg demand to the anti-lean work.'},
         {n:'Heavy DB Hold',    note:'Stand and hold for 3 × 30s if space is tight.'},
         {n:'Abdominal Machine', note:'Not a carry, but it keeps the trunk working when the floor is packed.'}
        ]}
     ],
-    tip:'No squats or heavy hinging here by design — Thursday’s game is 24h away and your legs need to be fresh for it.'
+    tip:'Tuesday sits 24h after Monday’s game and 48h before Thursday’s. Upper body only by design — your legs get the whole gap to recover.'
   },
   bball:{ id:'bball', label:'Basketball', sub:'2 hours · the priority', ex:[], tip:'This is what the whole programme serves. Turn up fresh.' },
   open:{  id:'open',  label:'Open day',   sub:'Nothing required — extras only if you fancy them', ex:[],
@@ -347,7 +366,7 @@ const PROGRAMME_M={
           tip:'Nothing is scheduled yet. Logging weight and extras still works, and none of it counts against you.'}
 };
 // 0=Sun … 6=Sat
-const SCHEDULE_M={1:'bball',2:'open',3:'gymB',4:'bball',5:'gymA',6:'open',0:'open'};
+const SCHEDULE_M={1:'bball',2:'gymB',3:'open',4:'bball',5:'gymA',6:'open',0:'open'};
 
 /* Optional extras. These NEVER count against you — they only ever earn credit. */
 const BONUS={
@@ -360,12 +379,14 @@ const BONUS={
   hottub: {label:'Hot tub',          sub:'Low effort, genuinely relaxing'},
   massage:{label:'Massage gun / roller', sub:'Soreness relief on stiff days'},
   racquet:{label:'Tennis / badminton / pickleball', sub:'Bonus movement — watch fatigue before games'},
-  adhoc:  {label:'Random workout',   sub:'An unplanned session you turned up for'}
+  adhoc:  {label:'Random workout',   sub:'An unplanned session you turned up for'},
+  activity:{label:'Extra activity',  sub:'Something logged outside the plan'},
+  extra:   {label:'Extra exercise',  sub:'Added on top of a planned session'}
 };
 // What's suggested on each day (0=Sun … 6=Sat)
-const SUGGEST_M={1:[],2:['blaze','swim'],3:[],4:[],5:['sauna','massage'],6:['run','yoga','racquet'],0:['sauna','hottub','swim']};
+const SUGGEST_M={1:[],2:[],3:['swim','sauna','massage'],4:[],5:['sauna','massage'],6:['blaze','run','yoga','racquet'],0:['sauna','hottub','swim']};
 // The four commitments a week is scored on
-const CORE_M=[{dow:1,type:'bball'},{dow:3,type:'gymB'},{dow:4,type:'bball'},{dow:5,type:'gymA'}];
+const CORE_M=[{dow:1,type:'bball'},{dow:2,type:'gymB'},{dow:4,type:'bball'},{dow:5,type:'gymA'}];
 
 const NUTRITION_M={kcal:2200,protein:175,fat:70,carbs:215};
 
@@ -447,6 +468,7 @@ let DB=Store.get('coach.db',null)||{
   fuel:{},           // 'YYYY-MM-DD': {kcal:true, protein:true} — MyFitnessPal adherence
   niggles:[],        // [{date, area, level, note, resolved}]
   adhoc:{},          // 'YYYY-MM-DD': a generated ad-hoc session
+  activities:[],     // [{date, cat, sub, vals, note}] — anything outside the plan
   settings:{ startWeight:175, goalWeight:159, unitMigrated:true },
   updatedAt:0
 };
@@ -454,7 +476,7 @@ const save=()=>{ DB.updatedAt=Date.now(); Store.set('coach.db',DB); if(window.Cl
 
 // One-time migration: body weight used to be stored in kg, now lb.
 // Lifting loads stay in kg and are untouched.
-DB.bodyfat=DB.bodyfat||{}; DB.fuel=DB.fuel||{}; DB.niggles=DB.niggles||[]; DB.adhoc=DB.adhoc||{};
+DB.bodyfat=DB.bodyfat||{}; DB.fuel=DB.fuel||{}; DB.niggles=DB.niggles||[]; DB.adhoc=DB.adhoc||{}; DB.activities=DB.activities||[];
 if(!DB.rewards) DB.rewards=[
   {days:10,  label:'New gym top',                claimed:false},
   {days:20,  label:'Proper sports massage',      claimed:false},
@@ -491,7 +513,7 @@ function weekPartlyAway(mondayISO){
 /* ============================================================
    SCORING  — the accountability engine
    ------------------------------------------------------------
-   Four core commitments a week (Mon bball, Day A, Thu bball, Day B).
+   Four core commitments a week (Mon bball, Tue Upper, Thu bball, Fri Lower).
    3 of 4  → on track. One miss is free, by design.
    ≤2 of 4 → off track.
    A week flagged as away in advance is excused entirely.
@@ -515,7 +537,7 @@ function weekStatus(mondayISO){
     const off=(c.dow+6)%7;           // convert Sun-start dow to Mon-start index
     const ds=days[off];
     if(isAway(ds)) return;           // excused day doesn't count against you
-    if(ds<=today) due++;
+    if(ds<today) due++;          // today isn't a miss until the day is over
     const e=DB.log[ds];
     // Gym sessions count wherever in the week you actually did them —
     // the day is a default, not a requirement. Basketball is date-fixed.
@@ -612,14 +634,24 @@ function exVariant(x,i){ return i===0?{n:x.n,note:x.note}:(x.alts&&x.alts[i-1])|
 /* ============================================================
    SESSION FEEDBACK — difficulty + how you felt
    ============================================================ */
-const MOUTHS=['M8.5 16.5c1.2-1.6 5.8-1.6 7 0','M8.5 16c1.2-0.9 5.8-0.9 7 0','M8.5 15.5h7','M8.5 14.6c1.2 0.9 5.8 0.9 7 0','M8.5 14c1.2 1.6 5.8 1.6 7 0'];
-function face(level,kind){
-  const i = kind==='mood' ? (5-level) : (level-1);
+// Index 0 = happiest → 4 = roughest. Middle pulled DOWN is a smile.
+const MOUTHS=['M8.5 14c1.2 1.6 5.8 1.6 7 0','M8.5 14.6c1.2 0.9 5.8 0.9 7 0','M8.5 15.5h7',
+              'M8.5 16c1.2-0.9 5.8-0.9 7 0','M8.5 16.5c1.2-1.6 5.8-1.6 7 0'];
+function face(level){                       // mood only — 5 = Great
+  const i=5-level;
   return `<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
     <circle cx="12" cy="12" r="9.2"/><circle cx="9" cy="10" r="1.05" fill="currentColor" stroke="none"/>
     <circle cx="15" cy="10" r="1.05" fill="currentColor" stroke="none"/><path d="${MOUTHS[i]}"/></svg>`;
 }
-const DIFF_LABEL=['Easy','Comfortable','Solid','Hard','Brutal'];
+// Difficulty is a measurement, not a feeling — an effort meter, no face.
+function effort(level){
+  return `<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor"
+    stroke-width="2.4" stroke-linecap="round">${
+    [0,1,2,3,4].map(i=>{const x=3.5+i*4.3, h=5+i*3.2;
+      return `<line x1="${x}" y1="${20}" x2="${x}" y2="${20-h}" opacity="${i<level?1:0.22}"/>`;}).join('')
+  }</svg>`;
+}
+const DIFF_LABEL=['Very easy','Easy','Moderate','Hard','Maximal'];
 const MOOD_LABEL=['Rough','Flat','Fine','Good','Great'];
 function setFeel(ds,field,v){
   const e=DB.log[ds]||(DB.log[ds]={type:SCHEDULE[parse(ds).getDay()],sets:{}});
@@ -630,9 +662,10 @@ window.setFeel=setFeel;
 function feelScale(ds,field,kind){
   const e=DB.log[ds]||{}, cur=e[field]||0;
   const labels = kind==='mood'?MOOD_LABEL:DIFF_LABEL;
+  const icon = kind==='mood'?face:effort;
   return `<div class="feel">${[1,2,3,4,5].map(v=>`
     <button class="fbtn${cur===v?' on':''}" onclick="setFeel('${ds}','${field}',${v})" aria-label="${labels[v-1]}">
-      ${face(v,kind)}<span>${labels[v-1]}</span>
+      ${icon(v)}<span>${labels[v-1]}</span>
     </button>`).join('')}</div>`;
 }
 
@@ -861,11 +894,11 @@ const GUIDE={
  steps:['Drop the heel for a full stretch.','Rise as high as you can onto your toes.','Pause, then lower slowly.'],
  tips:['Needs no equipment, so it is never unavailable.','One leg at a time exposes and fixes side-to-side differences.','Slow it right down — three seconds down, one-second pause up.'],
  watch:'single leg calf raise form'},
-'Suitcase Carry':{pose:'carry',kit:'One dumbbell or kettlebell',
- setup:['One weight in one hand, arm straight down at your side.'],
- steps:['Stand tall and brace hard — the weight is trying to bend you sideways.','Walk without leaning or letting the shoulder drop.','Swap sides for the second set.'],
- tips:['Harder on the trunk than a two-handed carry at half the weight.','Do not lean away to counterbalance — stay stacked and let your core do the work.'],
- watch:'suitcase carry core exercise form'},
+'Suitcase Lunge':{pose:'split',kit:'One dumbbell or kettlebell',
+ setup:['One weight in one hand, arm straight down at your side.','Stand tall, feet hip-width.'],
+ steps:['Step forward into a lunge, front shin roughly vertical.','Lower until the back knee is just above the floor.','Drive back to standing through the front heel.','Complete all reps on one side, then swap the weight to the other hand and repeat.'],
+ tips:['The weight is trying to bend you sideways — resist it. That is the point of loading one side only.','Do not lean away to counterbalance. Stay stacked and let your trunk do the work.','Single-leg strength plus anti-lean core in one movement, which is why it earns its place.','Front knee tracking inward means the weight is too heavy.'],
+ watch:'suitcase lunge form single arm'},
 'Heavy DB Hold':{pose:'hold',kit:'Heavy dumbbells',
  setup:['Two heavy dumbbells at your sides.'],
  steps:['Stand tall, shoulders back and down.','Hold for the prescribed time, breathing normally.'],
@@ -993,7 +1026,8 @@ function render(){
   document.getElementById('hdrPill').innerHTML =
     pre ? pill(daysToStart()===1?'starting':'soon') : pill(ws.state);
   const MT={reward:'Reward ladder',membership:'Membership',records:'Personal records',
-            fuel:'Nutrition',review:'Progress review',niggles:'Niggles',random:'Random workout'};
+            fuel:'Nutrition',review:'Progress review',niggles:'Niggles',random:'Random workout',
+            log:'Log an activity'};
   const T={today:'Today',week:'This week',progress:'Progress',
            more:MORE?MT[MORE]:'More',plan:'The plan',sync:'Sync'};
   document.getElementById('hdrTitle').textContent=T[TAB];
@@ -1002,7 +1036,7 @@ function render(){
     : pre ? (daysToStart()===1?'Week 1 starts tomorrow':`Week 1 starts in ${daysToStart()} days`)
     : weekTitle(new Date());
   if(TAB==='more'){ MORE?({reward:vReward,membership:vMembership,records:vRecords,
-      fuel:vFuel,review:vReview,niggles:vNiggles,random:vRandom})[MORE]() : vMore(); }
+      fuel:vFuel,review:vReview,niggles:vNiggles,random:vRandom,log:vLog})[MORE]() : vMore(); }
   else ({today:vToday,week:vWeek,progress:vProgress,plan:vPlan,sync:vSync})[TAB]();
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===TAB));
 }
@@ -1047,6 +1081,8 @@ function vToday(){
   if(isGym||(e.type==='gymA'||e.type==='gymB')){
     const key=e.type||type, prog=PROGRAMME[key];
     if(prog&&prog.ex.length){
+      const wk=warmKind(key);
+      h+=warmupBlock(wk);
       h+=`<h3 class="mt2" style="margin-bottom:8px">Log your sets</h3>`;
       prog.ex.forEach(x=>{
         const nAlts=(x.alts||[]).length;
@@ -1054,6 +1090,9 @@ function vToday(){
         const V=exVariant(x,vi);
         const sets=(e.sets&&e.sets[x.k])||[];
         const last=lastFor(x.k,ds,vi);
+        const targetReps=(x.t.match(/×\s*([\d–—-]+)/)||[])[1]||'';
+        const recW = last?last.w:'';
+        const nRows = Math.max(3,sets.length+ (sets.length>=3?1:0));
         h+=`<div class="ex${sets.length?' done':''}">
           <div class="top">
             <div style="flex:1;min-width:0">
@@ -1062,11 +1101,13 @@ function vToday(){
             </div>
             ${poseIcon(V.n)}
           </div>
-          ${[0,1,2].map(i=>`<div class="setrow">
+          <div class="setHead"><div>Set</div><div>Weight (kg)</div><div>Reps</div></div>
+          ${Array.from({length:nRows}).map((_,i)=>`<div class="setrow">
             <div class="n">${i+1}</div>
-            <input inputmode="decimal" placeholder="kg" value="${sets[i]?.w??''}" onchange="setLog('${x.k}',${i},'w',this.value)">
-            <input inputmode="numeric" placeholder="reps" value="${sets[i]?.r??''}" onchange="setLog('${x.k}',${i},'r',this.value)">
+            <input inputmode="decimal" placeholder="${recW||'—'}" value="${sets[i]?.w??''}" onchange="setLog('${x.k}',${i},'w',this.value)">
+            <input inputmode="numeric" placeholder="${targetReps||'—'}" value="${sets[i]?.r??''}" onchange="setLog('${x.k}',${i},'r',this.value)">
           </div>`).join('')}
+          <button class="addSet" onclick="addSetRow('${x.k}')">+ Add a set</button>
           <div class="note">${V.note}</div>
           ${nAlts?`<div class="swap">
             ${vi<nAlts
@@ -1077,6 +1118,43 @@ function vToday(){
           </div>`:''}
         </div>`;
       });
+
+      // anything extra you did on top of the plan
+      const extras=(e.extraEx||[]);
+      if(extras.length){
+        h+=`<h3 class="mt2" style="margin-bottom:8px">Extra — on top of the plan ★</h3>`;
+        extras.forEach((x,xi)=>{
+          const sets=(e.sets&&e.sets[x.k])||[];
+          const lastX=lastFor(x.k,ds,0);
+          const rows=Math.max(3,sets.length+(sets.length>=3?1:0));
+          h+=`<div class="ex${sets.length?' done':''}">
+            <div class="top">
+              <div style="flex:1;min-width:0">
+                <div class="nm">${x.n}</div>
+                <div class="tgt">Extra${lastX?` · last: ${lastX.w}kg × ${lastX.r}`:''}</div>
+              </div>
+              ${poseIcon(x.n)}
+            </div>
+            <div class="setHead"><div>Set</div><div>Weight (kg)</div><div>Reps</div></div>
+            ${Array.from({length:rows}).map((_,i)=>`<div class="setrow">
+              <div class="n">${i+1}</div>
+              <input inputmode="decimal" placeholder="${lastX?lastX.w:'—'}" value="${sets[i]?.w??''}" onchange="setLog('${x.k}',${i},'w',this.value)">
+              <input inputmode="numeric" placeholder="—" value="${sets[i]?.r??''}" onchange="setLog('${x.k}',${i},'r',this.value)">
+            </div>`).join('')}
+            <button class="addSet" onclick="addSetRow('${x.k}')">+ Add a set</button>
+            <div class="swap"><button onclick="rmExtraEx(${xi})">Remove this exercise</button></div>
+          </div>`;
+        });
+      }
+      h+=`<details><summary>+ Add an exercise</summary>
+        <div class="sec mt" style="margin-bottom:8px">Did something extra — a machine you fancied, an accessory lift? Add it here and it logs like the rest. It earns a ★ and never changes your session score.</div>
+        <label class="f">Exercise</label>
+        <select id="xPick">${Object.keys(GUIDE).sort().map(n=>`<option>${n}</option>`).join('')}</select>
+        <button class="btn mt" onclick="addExtraEx()">Add it</button>
+      </details>`;
+
+      h+=stretchBlock(warmKind(key));
+      h+=recoveryBlock(ds);
 
       // session feedback
       h+=`<div class="card"><h3>How was that?</h3>
@@ -1128,7 +1206,8 @@ function vToday(){
       </div>`;
     });
   }
-  h+=`<details style="margin-top:${suggested.length?'4px':'12px'}"><summary>Log something else</summary>
+  h+=`<button class="btn mt" onclick="openMore('log')">Log a run, swim or class — with details</button>`;
+  h+=`<details style="margin-top:8px"><summary>Quick tick — no details</summary>
     <div class="mt">${others.map(k=>{
       const on=done.includes(k);
       return `<div class="ex${on?' done':''}" style="cursor:pointer" onclick="toggleBonus('${ds}','${k}')">
@@ -1142,8 +1221,11 @@ function vToday(){
   // weight
   const w=DB.weights[ds];
   h+=`<div class="card mt2"><h3>Morning weight</h3>
-    <div class="row mt"><input inputmode="decimal" placeholder="lb" value="${w??''}" onchange="logWeight(this.value)" style="flex:1">
-    <div class="muted" style="white-space:nowrap">${trendTxt()}</div></div>
+    <div class="row mt" style="gap:8px">
+      <input id="wIn" inputmode="decimal" placeholder="lb" value="${w??''}" style="flex:1">
+      <button class="btn primary" style="width:auto;padding:11px 18px" onclick="submitWeight()">${w!=null?'Update':'Log'}</button>
+    </div>
+    <div class="muted mt">${w!=null?`Logged today: ${w} lb · `:''}${trendTxt()}</div>
     <div class="note">Same conditions each time — after the bathroom, before food. Single readings mean little; the 7-day average is the signal.</div>
   </div>`;
 
@@ -1180,6 +1262,34 @@ function lastFor(k,before,variant){
   }
   return null;
 }
+window.addExtraEx=()=>{
+  const n=document.getElementById('xPick').value, ds=todayISO();
+  const e=DB.log[ds]||(DB.log[ds]={type:SCHEDULE[new Date().getDay()],sets:{}});
+  e.extraEx=e.extraEx||[];
+  if(e.extraEx.some(x=>x.n===n)) return;
+  e.extraEx.push({n,k:'x_'+slug(n)});
+  const cur=new Set(bonusOn(ds)); cur.add('extra');
+  DB.bonus=DB.bonus||{}; DB.bonus[ds]=[...cur];
+  save(); render();
+};
+window.rmExtraEx=i=>{
+  const ds=todayISO(), e=DB.log[ds];
+  const gone=e.extraEx.splice(i,1)[0];
+  if(e.sets) delete e.sets[gone.k];
+  if(!e.extraEx.length&&DB.bonus[ds]){
+    const cur=new Set(DB.bonus[ds]); cur.delete('extra');
+    if(cur.size) DB.bonus[ds]=[...cur]; else delete DB.bonus[ds];
+  }
+  save(); render();
+};
+window.addSetRow=k=>{
+  const ds=todayISO();
+  const e=DB.log[ds]||(DB.log[ds]={type:SCHEDULE[new Date().getDay()],sets:{}});
+  e.sets=e.sets||{}; e.sets[k]=e.sets[k]||[];
+  while(e.sets[k].length<3) e.sets[k].push({});
+  e.sets[k].push({});
+  save(); render();
+};
 window.setLog=(k,i,f,v)=>{
   const ds=todayISO();
   const e=DB.log[ds]||(DB.log[ds]={type:SCHEDULE[new Date().getDay()],sets:{}});
@@ -1206,9 +1316,10 @@ window.logBodyFat=v=>{
   if(isNaN(n)) delete DB.bodyfat[ds]; else DB.bodyfat[ds]=n;
   save(); render();
 };
-window.logWeight=v=>{
-  const ds=todayISO(); const n=parseFloat(v);
-  if(isNaN(n)) delete DB.weights[ds]; else DB.weights[ds]=n;
+window.submitWeight=()=>{
+  const el=document.getElementById('wIn'); if(!el) return;
+  const ds=todayISO(), n=parseFloat(el.value);
+  if(isNaN(n)) delete DB.weights[ds]; else DB.weights[ds]=Math.round(n*10)/10;
   save(); render();
 };
 
@@ -1382,10 +1493,19 @@ function vProgress(){
   h+=`</div>`;
 
   h+=`<div class="card"><h3>Goal</h3>
-    <div class="grid2 mt">
-      <div><label class="f">Start lb</label><input inputmode="decimal" value="${start}" onchange="setCfg('startWeight',this.value)"></div>
-      <div><label class="f">Goal lb</label><input inputmode="decimal" value="${goal}" onchange="setCfg('goalWeight',this.value)"></div>
-    </div></div>`;
+    <table class="mt"><tbody>
+      <tr><td>Starting weight</td><td class="num">${start} lb</td></tr>
+      <tr><td>Goal weight</td><td class="num">${goal} lb</td></tr>
+    </tbody></table>
+    <div class="note">Your starting weight is a fixed baseline — every trend on this page is measured from it, so it stays put.</div>
+    <details style="margin-top:10px;border:0;padding:0;background:transparent">
+      <summary style="font-size:13px;color:var(--muted);font-weight:600">Change the baseline</summary>
+      <div class="grid2 mt">
+        <div><label class="f">Start lb</label><input inputmode="decimal" value="${start}" onchange="setCfg('startWeight',this.value)"></div>
+        <div><label class="f">Goal lb</label><input inputmode="decimal" value="${goal}" onchange="setCfg('goalWeight',this.value)"></div>
+      </div>
+      <div class="note">Only worth changing if the original figure was wrong — not to reset progress after a bad week.</div>
+    </details></div>`;
 
   view.innerHTML=h; wireChart();
 }
@@ -1570,6 +1690,7 @@ window.importData=el=>{
           fuel:d.fuel||{},
           niggles:d.niggles||[],
           adhoc:d.adhoc||{},
+          activities:d.activities||[],
           settings:Object.assign({startWeight:175,goalWeight:159,unitMigrated:true},d.settings||{})};
       save(); render(); alert('Backup restored.');
     }catch(e){ alert('Could not read that file: '+e.message); }
@@ -1642,8 +1763,8 @@ function vPlan(){
     <div class="sec mt"><b>If Thursday starts feeling flat, BLAZE is the first thing to drop</b> — not a gym day, and never basketball.</div>
     <div class="sec mt"><b>Yoga is the other one worth doing.</b> Hips and ankles feed straight into squat depth and landing mechanics, at almost no recovery cost.</div>
     <div class="sec mt"><b>No cycling</b> — off the table for your knee. It is cycling-specific, so nothing else here needs adjusting.</div>
-    <div class="sec mt"><b>Other strength classes will not replace Day A or B.</b> Light loads, high reps — fine if you enjoy them, but they will not progress your squat.</div>
-    <div class="sec mt"><b>Cold plunge: not within about 4 hours of lifting.</b> This is the one facility with a real downside — cold-water immersion straight after resistance training measurably blunts the strength and muscle adaptations you just trained for. Use it after basketball, on rest days, or well separated from Day A and Day B. Saunas do not have this problem.</div>
+    <div class="sec mt"><b>Other strength classes will not replace either gym session.</b> Light loads, high reps — fine if you enjoy them, but they will not progress your squat.</div>
+    <div class="sec mt"><b>Cold plunge: not within about 4 hours of lifting.</b> This is the one facility with a real downside — cold-water immersion straight after resistance training measurably blunts the strength and muscle adaptations you just trained for. Use it after basketball, on rest days, or well separated from either gym session. Saunas do not have this problem.</div>
     <div class="sec mt"><b>Saunas, hot tub, pools, massage gun</b> — all fine any time, all count as club visits, and they are a large part of what the membership premium actually buys.</div>
     <div class="sec mt"><b>Tennis, badminton, pickleball</b> are good bonus movement, but they are high-intensity and on your feet like basketball. Keep them away from Monday and Thursday if your legs are already loaded.</div>
     <div class="sec mt"><b>Body Hub: use it monthly, not weekly.</b> Body-composition readings bounce around day to day. Monthly matches how we assess everything else — trends, not single numbers.</div>
@@ -1658,7 +1779,7 @@ function vPlan(){
    Entirely optional. With no config the app runs exactly as
    before, storing everything locally on the device.
    ============================================================ */
-const BUILD='2026-08-24 · v17';   // shown on the Sync tab — check this to confirm an update landed
+const BUILD='2026-08-24 · v22';   // shown on the Sync tab — check this to confirm an update landed
 const FBV='https://www.gstatic.com/firebasejs/10.12.5';
 
 /* Firebase config lives in its own file — config.js — which this file never
@@ -1684,6 +1805,11 @@ function mergeDB(a,b){
     bonus:    mergeMap(newer.bonus,older.bonus),
     fuel:     mergeMap(newer.fuel,older.fuel),
     adhoc:    mergeMap(newer.adhoc,older.adhoc),
+    activities:(()=>{const seen=new Set(),out=[];
+                 [...(newer.activities||[]),...(older.activities||[])].forEach(v=>{
+                   const k=`${v.date}|${v.sub}|${JSON.stringify(v.vals||{})}`;
+                   if(!seen.has(k)){seen.add(k);out.push(v);}});
+                 return out;})(),
     rewards:  newer.rewards||older.rewards||null,
     niggles:  (()=>{const seen=new Set(),out=[];
                  [...(newer.niggles||[]),...(older.niggles||[])].forEach(v=>{
@@ -1806,6 +1932,7 @@ window.Cloud=Cloud;
    ============================================================ */
 const MORE_ITEMS=[
   {k:'random',     t:'Random workout',   d:'No plan today? Build one from what is here'},
+  {k:'log',        t:'Log an activity',  d:'Runs, swims, classes, sauna — anything extra'},
   {k:'reward',     t:'Reward ladder',    d:'Earn something real for staying consistent'},
   {k:'records',    t:'Personal records', d:'Your best set on every lift'},
   {k:'review',     t:'Progress review',  d:'What your numbers say to change'},
@@ -2065,7 +2192,7 @@ const POOL={
         'Assisted Dip','Cable Triceps Pushdown'],
   pull:['Lat Pulldown','Assisted Chin-up','Seated Row','Cable Low Row','Single-arm DB Row',
         'Plate-loaded Row','EZ-Bar Preacher Curl'],
-  core:['Pallof Press','Dead Bug','Abdominal Machine','Farmer’s Carry','Suitcase Carry'],
+  core:['Pallof Press','Dead Bug','Abdominal Machine','Farmer’s Carry','Suitcase Lunge'],
   arms:['EZ-Bar Preacher Curl','Cable Triceps Pushdown','Assisted Chin-up','Assisted Dip','Single-arm DB Row']
 };
 const FOCUS=[
@@ -2109,7 +2236,7 @@ function adhocWarning(w){
   if(legsy&&gameToday)
     return 'You have a 2-hour game today. Anything heavy on legs now competes directly with it.';
   if(dow===5&&legsy)
-    return 'Day A already trains legs hard today. Doing both is more volume than it is worth.';
+    return 'Gym — Lower already trains legs hard today. Doing both is more volume than it is worth.';
   return null;
 }
 
@@ -2126,6 +2253,8 @@ function vRandom(){
     </div>${done?pill('bonus'):''}</div>
     <div class="note">${w.rpeNote}</div></div>`;
 
+    const wk = w.focus==='legs'?'lower' : ['push','pull','upper','arms'].includes(w.focus)?'upper' : 'general';
+    h+=warmupBlock(wk);
     h+=`<h3 style="margin:0 0 8px">Log your sets</h3>`;
     w.ex.forEach(x=>{
       const sets=(w.sets&&w.sets[x.k])||[];
@@ -2134,14 +2263,18 @@ function vRandom(){
           <div style="flex:1;min-width:0"><div class="nm">${x.n}</div><div class="tgt">${x.t}</div></div>
           ${poseIcon(x.n)}
         </div>
-        ${[0,1,2,3].slice(0,INTENSITY[w.intensity].sets).map(i=>`<div class="setrow">
+        <div class="setHead"><div>Set</div><div>Weight (kg)</div><div>Reps</div></div>
+        ${Array.from({length:Math.max(INTENSITY[w.intensity].sets,sets.length)}).map((_,i)=>`<div class="setrow">
           <div class="n">${i+1}</div>
-          <input inputmode="decimal" placeholder="kg" value="${sets[i]?.w??''}" onchange="adhocSet('${x.k}',${i},'w',this.value)">
-          <input inputmode="numeric" placeholder="reps" value="${sets[i]?.r??''}" onchange="adhocSet('${x.k}',${i},'r',this.value)">
+          <input inputmode="decimal" placeholder="—" value="${sets[i]?.w??''}" onchange="adhocSet('${x.k}',${i},'w',this.value)">
+          <input inputmode="numeric" placeholder="${INTENSITY[w.intensity].reps}" value="${sets[i]?.r??''}" onchange="adhocSet('${x.k}',${i},'r',this.value)">
         </div>`).join('')}
+        <button class="addSet" onclick="adhocAddSet('${x.k}')">+ Add a set</button>
       </div>`;
     });
 
+    h+=stretchBlock(wk);
+    h+=recoveryBlock(ds);
     h+=`<div class="card"><h3>How was that?</h3>
       <div class="sec mt" style="margin-bottom:2px">Difficulty</div>${adhocScale('rpe','diff')}
       <div class="sec" style="margin-top:14px;margin-bottom:2px">How you felt</div>${adhocScale('mood','mood')}
@@ -2151,11 +2284,28 @@ function vRandom(){
     view.innerHTML=h; return;
   }
 
+  // three options to choose between
+  if(w&&w.options&&w.pick==null){
+    h+=`<div class="card"><h3>Pick one</h3>
+      <div class="sec mt">${FOCUS.find(f=>f.k===w.focus).t} · ${w.mins} min · ${INTENSITY[w.intensity].t}</div>
+      <div class="note">Three options, same focus and effort. Pick whichever suits what is free on the floor.</div></div>`;
+    w.options.forEach((o,n)=>{
+      h+=`<div class="card" style="cursor:pointer" onclick="pickOption(${n})">
+        <div class="row"><div style="font-weight:650;font-size:15px">Option ${n+1}</div>
+        <div class="muted" style="font-size:20px">›</div></div>
+        <div class="mt">${o.ex.map(x=>`<div class="wrow"><div class="wa">${x.n}</div><div class="wb">${x.t}</div></div>`).join('')}</div>
+      </div>`;
+    });
+    h+=`<button class="btn ghost" onclick="rerollAdhoc()">Three more</button>`;
+    h+=`<button class="btn ghost mt" onclick="clearAdhoc()">Start over</button>`;
+    view.innerHTML=h; return;
+  }
+
   if(w&&!w.accepted){
     const warn=adhocWarning(w);
     h+=`<div class="card"><div class="row"><div>
       <h2>${w.focusLabel} · ${w.mins} min</h2>
-      <div class="sec">${INTENSITY[w.intensity].t}</div></div></div>
+      <div class="sec">${INTENSITY[w.intensity].t}${w.pick!=null?` · option ${w.pick+1}`:''}</div></div></div>
       <div class="note">${w.rpeNote}</div></div>`;
     if(warn) h+=`<div class="banner b-warn">${I.alert}<div><b>Worth reconsidering.</b> ${warn}</div></div>`;
     h+=`<div class="card"><h3>The session</h3>
@@ -2165,7 +2315,7 @@ function vRandom(){
       <div class="note">Rest 90s on the big lifts, 60s on the rest. Tap any figure for full technique.</div>
     </div>`;
     h+=`<div class="btnrow"><button class="btn primary" onclick="acceptAdhoc()">Accept</button>
-      <button class="btn" onclick="rerollAdhoc()">Reroll</button></div>`;
+      <button class="btn" onclick="backToOptions()">Other options</button></div>`;
     h+=`<button class="btn ghost mt" onclick="clearAdhoc()">Start over</button>`;
     view.innerHTML=h; return;
   }
@@ -2183,35 +2333,247 @@ function vRandom(){
     </div>
     <button class="btn primary mt" onclick="rollAdhoc()">Generate a workout</button>
   </div>`;
-  h+=`<div class="banner b-info">${I.alert}<div>These count as a <b>★ bonus</b>, never as one of your four scored sessions. An unplanned session is a nice extra — it does not replace Day A or Day B.</div></div>`;
+  h+=`<div class="banner b-info">${I.alert}<div>These count as a <b>★ bonus</b>, never as one of your four scored sessions. An unplanned session is a nice extra — it does not replace either gym session.</div></div>`;
   view.innerHTML=h;
 }
 function adhocScale(field,kind){
   const ds=todayISO(), w=(DB.adhoc||{})[ds]||{}, cur=w[field]||0;
   const labels=kind==='mood'?MOOD_LABEL:DIFF_LABEL;
+  const icon = kind==='mood'?face:effort;
   return `<div class="feel">${[1,2,3,4,5].map(v=>`
-    <button class="fbtn${cur===v?' on':''}" onclick="adhocFeel('${field}',${v})">${face(v,kind)}<span>${labels[v-1]}</span></button>`).join('')}</div>`;
+    <button class="fbtn${cur===v?' on':''}" onclick="adhocFeel('${field}',${v})">${icon(v)}<span>${labels[v-1]}</span></button>`).join('')}</div>`;
 }
 window.rollAdhoc=()=>{
   const f=document.getElementById('aFocus').value;
   const m=parseInt(document.getElementById('aMins').value);
   const i=document.getElementById('aInt').value;
-  DB.adhoc=DB.adhoc||{}; DB.adhoc[todayISO()]={...genWorkout(f,m,i),accepted:false,sets:{}};
+  DB.adhoc=DB.adhoc||{}; DB.activities=DB.activities||[];
+  DB.adhoc[todayISO()]={options:[genWorkout(f,m,i),genWorkout(f,m,i),genWorkout(f,m,i)],
+                        pick:null,accepted:false,sets:{},focus:f,mins:m,intensity:i};
+  save(); render();
+};
+window.pickOption=n=>{
+  const w=DB.adhoc[todayISO()];
+  const o=w.options[n];
+  DB.adhoc[todayISO()]={...o,options:w.options,pick:n,accepted:false,sets:{}};
+  save(); render();
+};
+window.backToOptions=()=>{
+  const w=DB.adhoc[todayISO()];
+  DB.adhoc[todayISO()]={options:w.options,pick:null,accepted:false,sets:{},
+                        focus:w.focus,mins:w.mins,intensity:w.intensity};
   save(); render();
 };
 window.rerollAdhoc=()=>{
   const w=DB.adhoc[todayISO()];
-  DB.adhoc[todayISO()]={...genWorkout(w.focus,w.mins,w.intensity),accepted:false,sets:{}};
+  DB.adhoc[todayISO()]={options:[genWorkout(w.focus,w.mins,w.intensity),genWorkout(w.focus,w.mins,w.intensity),
+                                 genWorkout(w.focus,w.mins,w.intensity)],
+                        pick:null,accepted:false,sets:{},focus:w.focus,mins:w.mins,intensity:w.intensity};
   save(); render();
 };
 window.acceptAdhoc=()=>{ DB.adhoc[todayISO()].accepted=true; save(); render(); };
 window.clearAdhoc=()=>{ delete DB.adhoc[todayISO()]; save(); render(); };
+window.adhocAddSet=k=>{
+  const w=DB.adhoc[todayISO()]; w.sets=w.sets||{}; w.sets[k]=w.sets[k]||[];
+  const min=INTENSITY[w.intensity].sets;
+  while(w.sets[k].length<min) w.sets[k].push({});
+  w.sets[k].push({}); save(); render();
+};
 window.adhocSet=(k,i,f,v)=>{
   const w=DB.adhoc[todayISO()]; w.sets=w.sets||{}; w.sets[k]=w.sets[k]||[];
   w.sets[k][i]=w.sets[k][i]||{}; w.sets[k][i][f]=v; save();
 };
 window.adhocFeel=(field,v)=>{ const w=DB.adhoc[todayISO()]; w[field]= w[field]===v?null:v; save(); render(); };
 window.finishAdhoc=()=>{ toggleBonus(todayISO(),'adhoc'); };
+
+
+/* ============================================================
+   WARM-UP · STRETCH · RECOVERY
+   ------------------------------------------------------------
+   Bookends every session, planned or random. Warm-up is not
+   optional padding — it is what makes the first working set
+   count and keeps the last one safe.
+   ============================================================ */
+const WARMUP={
+  lower:{mins:8,items:[
+    ['3 min easy','Treadmill walk on an incline, or the SkiERG at a gentle pace. Just raise your temperature.'],
+    ['Leg swings','10 forward/back and 10 side-to-side per leg, holding a rack for balance.'],
+    ['Bodyweight squats','×10, going a little deeper each rep.'],
+    ['Glute bridges','×12, pausing a second at the top.'],
+    ['Empty bar / light sets','2–3 ramp-up sets on your first lift before the working weight.']
+  ]},
+  upper:{mins:6,items:[
+    ['3 min easy','Rower or cross trainer, easy pace.'],
+    ['Arm circles','10 forward, 10 back, gradually bigger.'],
+    ['Band or cable pull-aparts','×15, slow, squeezing the shoulder blades.'],
+    ['Scapular hangs / shrugs','×8 on the pull-up bar to wake the shoulder blades up.'],
+    ['Light sets','2 ramp-up sets on your first press before the working weight.']
+  ]},
+  general:{mins:6,items:[
+    ['3 min easy cardio','Anything that raises your temperature without tiring you.'],
+    ['Leg swings + arm circles','10 each per side.'],
+    ['Bodyweight squats','×10.'],
+    ['Light ramp-up sets','2 on the first exercise.']
+  ]}
+};
+const STRETCH={
+  lower:[['Hip flexor stretch','45s per side, kneeling, glute squeezed.'],
+         ['Hamstring stretch','45s per side, flat back, heel on a bench.'],
+         ['Calf stretch on a step','45s per side, straight knee then bent.'],
+         ['90/90 hip stretch','60s per side on the mats.']],
+  upper:[['Doorway or cable chest stretch','45s per side.'],
+         ['Lat stretch','45s per side, hanging or holding a rack and sitting back.'],
+         ['Cross-body shoulder stretch','30s per side.'],
+         ['Thoracic rotations','8 per side lying on your side.']],
+  general:[['Hip flexor stretch','45s per side.'],['Hamstring stretch','45s per side.'],
+           ['Chest stretch','45s per side.'],['Lat stretch','45s per side.']]
+};
+const RECOVERY=[
+  {mins:0,  t:'Skip',      d:'Straight out — fine when you are short on time.'},
+  {mins:5,  t:'5 min',     d:'The stretches above, nothing more.'},
+  {mins:10, t:'10 min',    d:'Stretches plus the massage gun on whatever feels tight.'},
+  {mins:20, t:'20 min',    d:'Stretches, then sauna or hot tub. This is what the membership is for.'},
+  {mins:30, t:'30 min',    d:'Full circuit — stretch, sauna, pool. Best on a day with nothing after it.'}
+];
+function warmKind(type){ return type==='gymA'?'lower':type==='gymB'?'upper':'general'; }
+
+function warmupBlock(kind){
+  const W=WARMUP[kind];
+  return `<details><summary>Warm-up · ${W.mins} min</summary>
+    <div class="sec mt" style="margin-bottom:8px">Do not skip this. It is the difference between a good first set and a wasted one.</div>
+    ${W.items.map(([a,b])=>`<div class="wrow"><div class="wa">${a}</div><div class="wb">${b}</div></div>`).join('')}
+  </details>`;
+}
+function stretchBlock(kind){
+  return `<details><summary>Stretches · after the session</summary>
+    <div class="sec mt" style="margin-bottom:8px">On the mats by the massage-gun station. Hold each one, do not bounce.</div>
+    ${STRETCH[kind].map(([a,b])=>`<div class="wrow"><div class="wa">${a}</div><div class="wb">${b}</div></div>`).join('')}
+  </details>`;
+}
+function recoveryBlock(ds){
+  const cur=(DB.log[ds]||{}).recovery;
+  const showPlunge=cur!=null&&cur>=10;
+  return `<div class="card"><h3>Recovery</h3>
+    <div class="sec mt" style="margin-bottom:4px">How long have you got afterwards?</div>
+    <div class="recRow">${RECOVERY.map(r=>`
+      <button class="recBtn${cur===r.mins?' on':''}" onclick="setRecovery('${ds}',${r.mins})">${r.t}</button>`).join('')}</div>
+    ${cur!=null?`<div class="note">${RECOVERY.find(r=>r.mins===cur).d}</div>`:''}
+    ${showPlunge?`<div class="banner b-warn mt">${I.alert}<div><b>Not the cold plunge today.</b> You have just lifted — cold water within about 4 hours blunts the adaptations you just trained for. Sauna and hot tub are fine.</div></div>`:''}
+  </div>`;
+}
+window.setRecovery=(ds,m)=>{
+  const e=DB.log[ds]||(DB.log[ds]={type:SCHEDULE[parse(ds).getDay()],sets:{}});
+  e.recovery = e.recovery===m ? null : m;
+  save(); render();
+};
+
+
+/* ============================================================
+   ACTIVITY LOG — anything outside the plan
+   ------------------------------------------------------------
+   Category → sub-category → the fields that actually matter for
+   that thing. A run wants distance, time and calories; a sauna
+   wants minutes. Everything earns a ★ and counts as a club visit
+   where it happened at the club.
+   ============================================================ */
+const ACTIVITIES={
+  Cardio:{
+    subs:['Run','Treadmill run','Swim','Row','SkiERG','Cross trainer','Walk'],
+    fields:[['dist','Distance','km'],['time','Time','min'],['cal','Calories','kcal'],['pace','Avg pace','min/km']]
+  },
+  Class:{
+    subs:['BLAZE','Yoga','Pilates','Spin (skip — knee)','Other class'],
+    fields:[['time','Length','min'],['cal','Calories','kcal']]
+  },
+  Sport:{
+    subs:['Basketball (extra)','Tennis','Badminton','Pickleball','Padel'],
+    fields:[['time','Time','min']]
+  },
+  Recovery:{
+    subs:['Sauna','Hot tub','Cold plunge','Massage gun','Stretch session','Swim (easy)'],
+    fields:[['time','Length','min']]
+  },
+  Other:{ subs:['Something else'], fields:[['time','Time','min'],['cal','Calories','kcal']] }
+};
+const CLUB_ACT=['Treadmill run','Swim','Row','SkiERG','Cross trainer','BLAZE','Yoga','Pilates','Other class',
+                'Tennis','Badminton','Pickleball','Padel','Sauna','Hot tub','Cold plunge','Massage gun',
+                'Stretch session','Swim (easy)'];
+
+function vLog(){
+  const cat=Store.get('coach.lastCat','Cardio');
+  const A=ACTIVITIES[cat];
+  let h=backBar();
+  h+=`<div class="card"><h3>Log an activity</h3>
+    <div class="sec mt">Anything outside the plan — a run on a day you never went near the gym, a swim, a class, twenty minutes in the sauna. Earns a ★ and never counts against you.</div>
+    <div class="mt"><label class="f">When</label>
+      <input type="date" id="lDate" value="${todayISO()}" max="${todayISO()}"></div>
+    <div class="mt"><label class="f">Category</label>
+      <select onchange="pickCat(this.value)">${Object.keys(ACTIVITIES).map(c=>
+        `<option${c===cat?' selected':''}>${c}</option>`).join('')}</select></div>
+    <div class="mt"><label class="f">What</label>
+      <select id="lSub">${A.subs.map(x=>`<option>${x}</option>`).join('')}</select></div>
+    <div class="grid2 mt">${A.fields.map(([k,lbl,unit])=>
+      `<div><label class="f">${lbl} (${unit})</label><input id="l_${k}" inputmode="decimal" placeholder="—"></div>`).join('')}</div>
+    <div class="mt"><label class="f">Note</label><input id="lNote" placeholder="Optional"></div>
+    <button class="btn primary mt" onclick="addActivity('${cat}')">Log it</button>
+  </div>`;
+
+  const acts=(DB.activities||[]).slice().reverse();
+  if(acts.length){
+    h+=`<div class="card"><h3>Recent</h3>${acts.slice(0,12).map((a)=>{
+      const i=DB.activities.indexOf(a);
+      const bits=Object.entries(a.vals||{}).filter(([,v])=>v!=='' && v!=null)
+        .map(([k,v])=>{const f=(ACTIVITIES[a.cat]?.fields||[]).find(x=>x[0]===k);return f?`${v} ${f[2]}`:v;});
+      return `<div class="ledger"><div>
+        <div style="font-weight:600">${a.sub}</div>
+        <div class="muted">${fmtD(a.date).replace(/^\w+, /,'')}${bits.length?' · '+bits.join(' · '):''}${a.note?` — ${a.note}`:''}</div>
+      </div><button class="btn danger" style="width:auto;padding:5px 11px;font-size:13px" onclick="rmActivity(${i})">Remove</button></div>`;
+    }).join('')}</div>`;
+
+    // simple totals for the current month
+    const m=todayISO().slice(0,7);
+    const mine=(DB.activities||[]).filter(a=>a.date.slice(0,7)===m);
+    const km=mine.reduce((t,a)=>t+(parseFloat(a.vals?.dist)||0),0);
+    const mins=mine.reduce((t,a)=>t+(parseFloat(a.vals?.time)||0),0);
+    h+=`<div class="card"><h3>This month</h3>
+      <table class="mt"><tbody>
+        <tr><td>Activities logged</td><td class="num">${mine.length}</td></tr>
+        <tr><td>Distance</td><td class="num">${km?km.toFixed(1)+' km':'—'}</td></tr>
+        <tr><td>Time</td><td class="num">${mins?Math.round(mins)+' min':'—'}</td></tr>
+      </tbody></table></div>`;
+  } else {
+    h+=`<div class="banner b-info">${I.alert}<div>Nothing logged yet. This is for the things the plan does not cover — a run, a swim, a game of badminton, twenty minutes in the sauna.</div></div>`;
+  }
+  view.innerHTML=h;
+}
+window.pickCat=c=>{ Store.set('coach.lastCat',c); render(); };
+window.addActivity=cat=>{
+  const sub=document.getElementById('lSub').value;
+  const vals={};
+  (ACTIVITIES[cat].fields||[]).forEach(([k])=>{
+    const el=document.getElementById('l_'+k); if(el&&el.value!=='') vals[k]=el.value;
+  });
+  const note=document.getElementById('lNote').value;
+  const dEl=document.getElementById('lDate');
+  const ds=(dEl&&dEl.value)||todayISO();
+  DB.activities=DB.activities||[];
+  DB.activities.push({date:ds,cat,sub,vals,note});
+  // star for the day + a club visit when it happened at the club
+  DB.bonus=DB.bonus||{};
+  const cur=new Set(bonusOn(ds)); cur.add('activity'); DB.bonus[ds]=[...cur];
+  if(CLUB_ACT.includes(sub)) (DB.visits=DB.visits||[]).push({date:ds,type:'activity:'+sub});
+  save(); render();
+};
+window.rmActivity=i=>{
+  const a=DB.activities[i];
+  DB.activities.splice(i,1);
+  const still=(DB.activities||[]).some(x=>x.date===a.date);
+  if(!still&&DB.bonus[a.date]){
+    const cur=new Set(DB.bonus[a.date]); cur.delete('activity');
+    if(cur.size) DB.bonus[a.date]=[...cur]; else delete DB.bonus[a.date];
+  }
+  save(); render();
+};
 
 /* ---------- SYNC TAB ---------- */
 function vSync(){
