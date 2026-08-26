@@ -337,6 +337,10 @@ td.num{overflow-wrap:anywhere}
 /* --- equipment cross-links --- */
 .eqEx{display:flex;flex-wrap:wrap;gap:6px}
 .eqEx .chip{font-size:12.5px}
+
+.ex.skipped{opacity:.5;border-style:dashed}
+.wrow.mob.ticked .wa{opacity:.55;text-decoration:line-through}
+.wrow.mob{display:flex;align-items:center;gap:10px}
 </style>
 </head>
 <body>
@@ -388,48 +392,47 @@ const Store=(()=>{
 let START='2026-08-24';             // Monday of week 1 — overridden per profile
 const PROGRAMME_M={
   gymA:{
-    id:'gymA', label:'Gym — Lower', sub:'Legs and hinge · main strength session',
+    id:'gymA', label:'Gym — Lower', sub:'Legs, hinge and single-leg · main strength session',
     ex:[
       {n:'Back Squat', t:'3 × 5', k:'squat',
        note:'RPE 8 — the main strength driver. Olympic rack. Goblet squat for the first 2–3 weeks if technique needs work.',
        alts:[
         {n:'Linear Hack Squat', note:'Plate-loaded. Same pattern with the back supported — you will handle more load than free-squatting.'},
         {n:'Seated Leg Press',  note:'Fewer stabiliser demands, so go heavier. Full range, do not bounce out of the bottom.'},
-        {n:'Goblet Squat',      note:'DB at chest, free weights area. Grip limits load, so run 3 × 10 instead.'}
+        {n:'Goblet Squat',      t:'3 × 10', note:'DB at chest, free weights area. Grip limits load, so run 3 × 10 instead.'}
        ]},
-      {n:'Dumbbell Romanian Deadlift', t:'3 × 6', k:'rdl',
+      {n:'Bulgarian Split Squat', t:'2 × 8/leg', k:'split',
+       note:'Bodyweight to start. The knee must track over the foot — this is the position you land in on court.',
+       alts:[
+        {n:'Suitcase Lunge', t:'2 × 8/leg', note:'One DB at your side. Walking version, same single-leg demand.'},
+        {n:'Slow Step-down', t:'3 × 8/leg', note:'Off a step, three seconds down. Easier to control if balance is the limit.'},
+        {n:'Seated Leg Press', t:'3 × 10/leg', note:'One leg at a time on the platform. Loses the balance demand, keeps the strength.'}
+       ]},
+      {n:'Dumbbell Romanian Deadlift', t:'3 × 8', k:'rdl',
        note:'RPE 7 — controlled, not to failure. Hinge at the hip, soft knees, feel the hamstrings load.',
        alts:[
         {n:'Barbell RDL',            note:'Same movement off the rack. Better once your form is grooved.'},
-        {n:'Single-leg DB RDL',      note:'3 × 8/leg with a lighter DB. Adds a balance demand that carries to cutting.'},
+        {n:'Single-leg DB RDL',      t:'3 × 8/leg', note:' with a lighter DB. Adds a balance demand that carries to cutting.'},
         {n:'Seated Leg Curl',        note:'Machine. Knee-flexion rather than a hinge — different emphasis, but it still trains the hamstrings.'}
        ]},
-      {n:'Chest Press', t:'3 × 8', k:'chest',
-       note:'Assisted/pin-loaded machine. Controlled down, drive up.',
+      {n:'Standing DB Calf Raise', t:'3 × 12–15', k:'calf',
+       note:'Full stretch at the bottom, pause at the top. Calf and Achilles capacity — the tissue that ends most basketball careers.',
        alts:[
-        {n:'DB Bench Press',    note:'Adjustable bench, flat. More stabiliser work than the machine.'},
-        {n:'Incline Press',     note:'Plate-loaded. More upper chest and shoulder.'},
-        {n:'Barbell Bench Press', note:'Raised bench press station. Use a spotter or stay well short of failure.'}
-       ]},
-      {n:'Lat Pulldown', t:'3 × 8', k:'pull',
-       note:'Pin-loaded. Pull to the collarbone, elbows down rather than back.',
-       alts:[
-        {n:'Assisted Chin-up', note:'Machine. Closer to the real thing — use the least assistance you can manage.'},
-        {n:'Pulldown (other station)', note:'The second pulldown machine — same pattern, different handle.'},
-        {n:'Cable Low Row',    note:'Horizontal rather than vertical pull. Not identical, but it keeps the back working.'}
+        {n:'Leg Press Calf Raise', t:'3 × 12–15', note:'Toes on the edge of the leg press platform. Easy to load heavy.'},
+        {n:'Single-leg Step Calf Raise', t:'3 × 12/leg', note:'Bodyweight off a step. Needs nothing at all.'}
        ]},
       {n:'Pallof Press', t:'2 × 10/side', k:'pallof',
        note:'Cable at chest height. Resist the rotation — that is the whole exercise.',
        alts:[
         {n:'Cable Crossover (single arm)', note:'Set one side at chest height. Same anti-rotation demand.'},
         {n:'Abdominal Machine',           note:'Flexion rather than anti-rotation. A lesser substitute, but it beats nothing.'},
-        {n:'Dead Bug',                    note:'Floor, no equipment. 2 × 10/side, slow. Never unavailable.'}
+        {n:'Dead Bug',                    t:'2 × 10/side', note:'Floor, no equipment, slow. Never unavailable.'}
        ]}
     ],
-    tip:'Friday sits 3 days before Monday’s game — the most recovery any slot gives your legs before the session that matters most. You are 24h off Thursday’s game so you will not feel fresh; train to a solid RPE 8, do not chase a PR on tired legs.'
+    tip:'Friday is 24h after Thursday’s game, so your legs will not feel fresh — and it is still the best slot there is, because it leaves three clear days before Monday. Train to a solid RPE 8 and do not chase a PR on tired legs. Everything here is lower body or trunk: this is the session that builds the knees and ankles you want to still have at 60.'
   },
   gymB:{
-    id:'gymB', label:'Gym — Upper', sub:'Push and pull · legs kept fresh',
+    id:'gymB', label:'Gym — Upper', sub:'Push, pull and posture · legs untouched',
     ex:[
       {n:'Shoulder Press', t:'3 × 6–8', k:'ohp',
        note:'Pin-loaded machine. Press without letting the ribs flare.',
@@ -443,34 +446,42 @@ const PROGRAMME_M={
        alts:[
         {n:'Cable Low Row',      note:'Same movement, cable resistance. Do not lean back to move the weight.'},
         {n:'Plate-loaded Row',   note:'Chest-supported. Takes the lower back out of it entirely.'},
-        {n:'Single-arm DB Row',  note:'Hand on a bench, 3 × 10/arm. Also evens out side-to-side differences.'}
+        {n:'Single-arm DB Row',  t:'3 × 10/arm', note:'Hand on a bench. Also evens out side-to-side differences.'}
        ]},
-      {n:'Assisted Dip', t:'3 × 8–10', k:'push2',
-       note:'Second push movement. Use the least assistance you can control.',
+      {n:'Chest Press', t:'3 × 8–10', k:'chest',
+       note:'Handles level with the middle of the chest. Shoulder blades pinned back throughout.',
        alts:[
-        {n:'Chest Press',   note:'Machine. Straightforward swap.'},
-        {n:'Incline Press', note:'Plate-loaded. Shifts emphasis higher on the chest.'},
-        {n:'DB Bench Press', note:'Adjustable bench, flat.'}
+        {n:'DB Bench Press',  note:'Adjustable bench, flat. More stabiliser work than the machine.'},
+        {n:'Assisted Dip',    note:'Use the least assistance you can control. Closer to a full bodyweight movement.'},
+        {n:'Incline Press',   note:'Plate-loaded. Shifts emphasis higher on the chest.'},
+        {n:'Barbell Bench Press', note:'Raised bench press station. Spotter, or stay well short of failure.'}
        ]},
-      {n:'Standing DB Calf Raise', t:'3 × 12–15', k:'calf',
-       note:'Full stretch at the bottom, pause at the top. Direct ankle resilience.',
+      {n:'Lat Pulldown', t:'3 × 8–10', k:'pull',
+       note:'Chest up, pull the bar to your collarbone. Never behind the neck.',
        alts:[
-        {n:'Leg Press Calf Raise', note:'Toes on the edge of the seated leg press platform. Easy to load heavy.'},
-        {n:'Single-leg Step Calf Raise', note:'Bodyweight off a step, 3 × 12/leg. Needs nothing at all.'}
+        {n:'Assisted Chin-up', note:'Closer to the real thing — use the least assistance you can manage.'},
+        {n:'Pulldown (other station)', note:'The second pulldown machine, different handle.'},
+        {n:'Cable Low Row',    note:'Horizontal rather than vertical. Not identical, but it keeps the back working.'}
+       ]},
+      {n:'Face Pull', t:'3 × 15–20', k:'face',
+       note:'Cable at head height, rope. Light. The single best thing for shoulders that sit forward.',
+       alts:[
+        {n:'Band or cable pull-aparts', t:'3 × 20', note:'Same job, simpler setup. Slow and controlled, no shrugging.'},
+        {n:'Prone Y-T-W', t:'3 × 8 each', note:'On an incline bench, no weight to start. Harder than it looks.'}
        ]},
       {n:'Farmer’s Carry', t:'2 × 20–30m', k:'carry',
        note:'Heavy DBs or kettlebells. Tall posture, brace, walk. Grip and trunk with minimal leg cost.',
        alts:[
-        {n:'Suitcase Lunge',   note:'One DB at your side, 2 × 8/leg. Adds a single-leg demand to the anti-lean work.'},
-        {n:'Heavy DB Hold',    note:'Stand and hold for 3 × 30s if space is tight.'},
+        {n:'Heavy DB Hold',    t:'3 × 30s', note:'Stand and hold if space is tight. Same grip and trunk demand, no walking.'},
+        {n:'Dead Bug',         t:'2 × 10/side', note:'Floor, no equipment, slow. Never unavailable.'},
         {n:'Abdominal Machine', note:'Not a carry, but it keeps the trunk working when the floor is packed.'}
        ]}
     ],
-    tip:'Tuesday sits 24h after Monday’s game and 48h before Thursday’s. Upper body only by design — your legs get the whole gap to recover.'
+    tip:'Tuesday sits 24h after Monday’s game and 48h before Thursday’s, so nothing here touches your legs — they get the whole gap. Deliberately pull-biased: three pulling movements to two pushes, because shoulders that sit forward do not get fixed by stretching the front, only by strengthening the back.'
   },
   bball:{ id:'bball', label:'Basketball', sub:'2 hours · the priority', ex:[], tip:'This is what the whole programme serves. Turn up fresh.' },
   open:{  id:'open',  label:'Open day',   sub:'Nothing required — extras only if you fancy them', ex:[],
-          tip:'Rest is doing work here. Anything you add today is a bonus, never an obligation.'},
+          tip:'Rest is doing work here. Anything you add today is a bonus, never an obligation. If you want to use it, a 15-minute recovery session — ankle or knee — is the highest-return thing you can do on an open day, and it costs you nothing on Thursday.'},
   rest:{  id:'rest',  label:'Rest / Reset', sub:'Recovery is part of the plan', ex:[],
           tip:'Deliberate. Walk if you like, but nothing that costs recovery.'},
   tba:{   id:'tba',   label:'To be arranged', sub:'Programme not built yet', ex:[],
@@ -514,7 +525,7 @@ const PROFILES={
     name:'Marcus', start:'2026-08-24',
     schedule:SCHEDULE_M, suggest:SUGGEST_M, core:CORE_M,
     programme:PROGRAMME_M, nutrition:NUTRITION_M,
-    settings:{startWeight:175,goalWeight:159,unitMigrated:true}
+    settings:{startWeight:175,goalWeight:152,unitMigrated:true}
   },
   'ro.racheloconnor@gmail.com':{
     name:'Rachel', start:'2026-08-24', setup:true,
@@ -582,7 +593,7 @@ const MEMBERSHIP_DEFAULT={annualCost:3746,myShare:1873,basis:'share',currency:'�
 // NOTE: unitMigrated is deliberately NOT defaulted here. Its absence is what
 // tells the kg→lb migration that this is an old store that still needs
 // converting. normalise() stamps it only on a genuinely fresh install.
-const SETTINGS_DEFAULT={startWeight:175,goalWeight:159};
+const SETTINGS_DEFAULT={startWeight:175,goalWeight:152};
 const SHAPE={
   log:       {kind:'byDate', of:'entry'},     // 'YYYY-MM-DD': one planned session
   weights:   {kind:'byDate'},                 // 'YYYY-MM-DD': lb
@@ -652,6 +663,15 @@ if(!DB.settings.unitMigrated){
   if(DB.settings.startWeight) DB.settings.startWeight=Math.round(DB.settings.startWeight*K);
   if(DB.settings.goalWeight)  DB.settings.goalWeight =Math.round(DB.settings.goalWeight*K);
   DB.settings.unitMigrated=true;
+  Store.set('coach.db',DB);
+}
+
+// Goal weight revised 24 Aug 2026: 159lb lands at roughly 20% body fat, which
+// is not the visible-abs target Marcus is actually after. 152lb is. Only
+// rewrites the old default — a goal set by hand is left alone.
+if(!DB.settings.goalRevised2026){
+  if(DB.settings.goalWeight===159) DB.settings.goalWeight=152;
+  DB.settings.goalRevised2026=true;
   Store.set('coach.db',DB);
 }
 
@@ -788,7 +808,48 @@ function resetVariant(ds,k){
   save(); render();
 }
 window.bumpVariant=bumpVariant; window.resetVariant=resetVariant;
-function exVariant(x,i){ return i===0?{n:x.n,note:x.note}:(x.alts&&x.alts[i-1])||{n:x.n,note:x.note}; }
+
+/* Manual swap: replaces the exercise inside its slot, keeping the same key.
+   That matters — the slot stays part of the session, so the swap never
+   becomes a "bonus extra" and never earns a star it did not deserve. Sets,
+   history and progression all carry on under the same key. */
+let SWAP_FOR=null;
+window.pickSwap=k=>{ SWAP_FOR = SWAP_FOR===k ? null : k; render(); };
+window.applySwap=k=>{
+  const el=document.getElementById('swapPick'); if(!el) return;
+  const n=el.value, ds=curDate();
+  const e=DB.log[ds]||(DB.log[ds]={type:SCHEDULE[parse(ds).getDay()],sets:{}});
+  e.swapEx=e.swapEx||{}; e.swapEx[k]={n};
+  if(e.sets&&e.sets[k]) delete e.sets[k];        // different movement, different loads
+  if(e.exName) delete e.exName[k];
+  if(e.skipped) delete e.skipped[k];
+  SWAP_FOR=null; save(); render();
+};
+window.clearSwap=k=>{
+  const ds=curDate(), e=DB.log[ds]; if(!e||!e.swapEx) return;
+  delete e.swapEx[k];
+  if(e.sets&&e.sets[k]) delete e.sets[k];
+  if(e.exName) delete e.exName[k];
+  SWAP_FOR=null; save(); render();
+};
+/* Skipping is a decision, not an absence. Recording it means a blank row
+   later reads as "not done yet" rather than "quietly dropped". */
+window.toggleSkip=k=>{
+  const ds=curDate();
+  const e=DB.log[ds]||(DB.log[ds]={type:SCHEDULE[parse(ds).getDay()],sets:{}});
+  e.skipped=e.skipped||{};
+  if(e.skipped[k]) delete e.skipped[k]; else e.skipped[k]=true;
+  save(); render();
+};
+function exVariant(x,i,swap){
+  // A manual swap wins over everything: you picked it, so it is the exercise.
+  if(swap) return {n:swap.n,note:swap.note||'Your own choice, in place of '+x.n+'.',t:swap.t||x.t,manual:true};
+  // An alternative is a different exercise, so it may carry its own target —
+  // a lunge is not "2 × 20–30m" just because the carry it replaced was.
+  if(!i) return {n:x.n,note:x.note,t:x.t};
+  const a=(x.alts&&x.alts[i-1]); if(!a) return {n:x.n,note:x.note,t:x.t};
+  return {n:a.n,note:a.note,t:a.t||x.t};
+}
 
 /* ============================================================
    SESSION FEEDBACK — difficulty + how you felt
@@ -1138,10 +1199,10 @@ const GUIDE={
  tips:['Arms stay straight throughout. If your elbows bend it becomes a pull-up.','Excellent preparation for pulldowns and rows.'],
  watch:'scapular pull ups hangs'},
 'Light sets':{pose:'press',kit:'The machine or bar you are about to use',brief:'2 before your working weight',
- setup:['Use the first pressing movement of the session.'],
- steps:['Very light: 10 reps.','About 60% of working weight: 5 reps, then begin.'],
- tips:['Shoulders in particular reward a proper build-up.'],
- watch:'warm up sets shoulder press'},
+ setup:['On the first exercise of the session — the row above names it and gives you the two loads.'],
+ steps:['Set one: about 40% of your working weight for 10 reps. On a barbell, just the empty bar.','Set two: about 60% for 5 reps.','Rest 60 seconds, then start your first working set.'],
+ tips:['These are not training. Move quickly and do not chase a burn — the job is to rehearse the movement and warm the joint, nothing more.','Shoulders in particular reward a proper build-up. A cold first press is where the ache comes from.','If the working weight is still light, one build-up set is enough.'],
+ watch:'warm up sets before working sets how many'},
 'Hip flexor stretch':{pose:'hipstretch',kit:'Floor mat',brief:'45s per side',
  setup:['Half-kneeling — one knee down on the mat, other foot flat in front.'],
  steps:['Squeeze the glute on the kneeling side and tuck your hips under.','Shift gently forward until you feel a stretch at the front of the hip.','Hold 45 seconds, breathing normally. Swap sides.'],
@@ -1358,22 +1419,24 @@ function vToday(){
     const key=e.type||type, prog=PROGRAMME[key];
     if(prog&&prog.ex.length){
       const wk=warmKind(key);
-      h+=warmupBlock(wk);
+      h+=warmupBlock(wk,ds,prog);
       h+=`<h3 class="mt2" style="margin-bottom:8px">Log your sets</h3>`;
       prog.ex.forEach(x=>{
         const nAlts=(x.alts||[]).length;
         const vi=variantIdx(ds,x.k);
-        const V=exVariant(x,vi);
+        const swap=((DB.log[ds]||{}).swapEx||{})[x.k];
+        const V=exVariant(x,vi,swap);
+        const skipped=((DB.log[ds]||{}).skipped||{})[x.k];
         const sets=(e.sets&&e.sets[x.k])||[];
         const last=lastFor(x.k,ds,vi);
-        const targetReps=(x.t.match(/×\s*([\d–—-]+)/)||[])[1]||'';
+        const targetReps=(String(V.t).match(/×\s*([\d–—-]+)/)||[])[1]||'';
         const recW = last?last.w:'';
-        const nRows = Math.max(3,sets.length+ (sets.length>=3?1:0));
-        h+=`<div class="ex${sets.length?' done':''}">
+        const nRows = Math.max(3,sets.length);
+        h+=`<div class="ex${skipped?' skipped':sets.length?' done':''}">
           <div class="top">
             <div style="flex:1;min-width:0">
               <div class="nm">${V.n}${vi?` <span class="muted" style="font-weight:600">· sub ${vi}</span>`:''}</div>
-              <div class="tgt">${x.t}${last?` · last: ${last.w}kg × ${last.r}`:''}</div>
+              <div class="tgt">${V.t}${last?` · last: ${last.w}kg × ${last.r}`:''}</div>
             </div>
             ${poseIcon(V.n)}
           </div>
@@ -1384,7 +1447,7 @@ function vToday(){
             <input inputmode="numeric" placeholder="${targetReps||'—'}" value="${sets[i]?.r??''}" onchange="setLog('${x.k}',${i},'r',this.value)">
           </div>`).join('')}
           <button class="addSet" onclick="addSetRow('${x.k}')">+ Add a set</button>
-          ${(()=>{const sg=suggestWeight(x.k,x.t,vi);
+          ${(()=>{const sg=suggestWeight(x.k,V.t,vi,V.n);
             const cur=sets.find(v=>v&&v.w);
             const bar=BARBELL.includes(V.n)&&cur?`<div class="plate">${plateText(parseFloat(cur.w))}</div>`:'';
             return (sg?`<div class="suggest">Suggested: ${sg.w}kg — ${sg.why}</div>`:'')+bar;})()}
@@ -1393,11 +1456,26 @@ function vToday(){
             <button onclick="startRest(${/Squat|Deadlift|RDL|Press|Row|Pulldown|Dip|Chin/.test(V.n)?90:60},'${V.n.replace(/'/g,'')}')">Rest ${/Squat|Deadlift|RDL|Press|Row|Pulldown|Dip|Chin/.test(V.n)?'90s':'60s'}</button>
           </div>
           <div class="note">${V.note}</div>
+          <div class="exTools">
+            <button onclick="pickSwap('${x.k}')">${V.manual?'Change what you swapped in':'Swap for something else'}</button>
+            ${V.manual?`<button onclick="clearSwap('${x.k}')">Back to ${x.n}</button>`:''}
+            <button onclick="toggleSkip('${x.k}')">${skipped?'Skipped — undo':'Skip this one'}</button>
+          </div>
+          ${SWAP_FOR===x.k?`<div class="card tight" style="margin-top:8px">
+            <label class="f">Swap in</label>
+            <select id="swapPick">${Object.keys(GUIDE).filter(n=>LIB_TYPE[n]==='Exercise').sort()
+              .map(n=>`<option${n===V.n?' selected':''}>${n}</option>`).join('')}</select>
+            <div class="btnrow mt">
+              <button class="btn primary" onclick="applySwap('${x.k}')">Use this</button>
+              <button class="btn" onclick="pickSwap(null)">Cancel</button>
+            </div>
+            <div class="note">This replaces the exercise in its slot. It stays part of the session, so it does not become a bonus extra and does not earn a ★.</div>
+          </div>`:''}
           ${nAlts?`<div class="swap">
             ${vi<nAlts
               ? `<button onclick="bumpVariant('${ds}','${x.k}',${nAlts})">Taken — swap it</button>
                  <span class="step">${nAlts-vi} left</span>`
-              : `<span class="step" style="color:var(--warning);white-space:normal">All ${nAlts} alternatives gone — the gym is rammed. Do something equivalent and log it here.</span>`}
+              : `<span class="step" style="color:var(--warning);white-space:normal">All ${nAlts} alternatives gone. Swap in something else above, or skip it.</span>`}
             ${vi?`<button onclick="resetVariant('${ds}','${x.k}')">Back to ${x.n}</button>`:''}
           </div>`:''}
         </div>`;
@@ -1437,7 +1515,7 @@ function vToday(){
         <button class="btn mt" onclick="addExtraEx()">Add it</button>
       </details>`;
 
-      h+=stretchBlock(warmKind(key));
+      h+=stretchBlock(warmKind(key),ds);
       h+=recoveryBlock(ds,null);
 
       // session feedback
@@ -1589,6 +1667,8 @@ window.rmExtraEx=i=>{
 function stampName(e,ds,k){
   e.exName=e.exName||{};
   if(e.exName[k]) return;
+  const sw=(e.swapEx||{})[k];
+  if(sw){ e.exName[k]=sw.n; return; }
   const prog=PROGRAMME[e.type||SCHEDULE[parse(ds).getDay()]];
   const x=(prog&&prog.ex||[]).find(y=>y.k===k);
   if(x){ e.exName[k]=exVariant(x,(e.variant&&e.variant[k])||0).n; return; }
@@ -2469,7 +2549,7 @@ function vPlan(){
    Entirely optional. With no config the app runs exactly as
    before, storing everything locally on the device.
    ============================================================ */
-const BUILD='2026-08-24 · v36';   // shown on the Sync tab — check this to confirm an update landed
+const BUILD='2026-08-24 · v39';   // shown on the Sync tab — check this to confirm an update landed
 const FBV='https://www.gstatic.com/firebasejs/10.12.5';
 
 /* Firebase config lives in its own file — config.js — which this file never
@@ -2501,8 +2581,15 @@ function mergeEntry(n,o){
   out.sets   ={...(o.sets||{}),   ...(n.sets||{})};
   out.variant={...(o.variant||{}),...(n.variant||{})};
   out.exName ={...(o.exName||{}), ...(n.exName||{})};
+  out.warm   ={...(o.warm||{}),   ...(n.warm||{})};
+  out.stretch={...(o.stretch||{}),...(n.stretch||{})};
+  out.skipped={...(o.skipped||{}),...(n.skipped||{})};
+  out.swapEx ={...(o.swapEx||{}), ...(n.swapEx||{})};
   const ex=[...(n.extraEx||[]),...(o.extraEx||[])];
   out.extraEx=ex.filter((x,i)=>ex.findIndex(y=>y.k===x.k)===i);
+  ['warm','stretch','skipped','swapEx','exName','variant'].forEach(k=>{
+    if(out[k]&&!Object.keys(out[k]).length) delete out[k];
+  });
   if(!out.extraEx.length) delete out.extraEx;
   return out;
 }
@@ -2942,8 +3029,14 @@ function historyRows(){
         note:['session summary',e.mood?`felt ${MOOD_LABEL[e.mood-1]}`:''].filter(Boolean).join(' · ')});
     }
     const named={};
-    (prog&&prog.ex||[]).forEach(x=>{ const vi=(e.variant&&e.variant[x.k])||0; named[x.k]=exVariant(x,vi).n; });
+    (prog&&prog.ex||[]).forEach(x=>{ const vi=(e.variant&&e.variant[x.k])||0;
+      named[x.k]=exVariant(x,vi,(e.swapEx||{})[x.k]).n; });
     (e.extraEx||[]).forEach(x=>{ named[x.k]=x.n+' (extra)'; });
+    Object.keys(e.skipped||{}).forEach(k=>{
+      if((e.sets||{})[k]&&setSummary(e.sets[k])) return;      // logged after all
+      out.push({d,cat:'Gym',name:(e.exName&&e.exName[k])||named[k]||keyName(k),
+        v1:'—',v2:'—',v3:'skipped',note:'skipped on the day',session:prog?prog.label:''});
+    });
     Object.keys(e.sets||{}).forEach(k=>{
       const sum=setSummary(e.sets[k]); if(!sum) return;
       out.push({d,cat:'Gym',name:(e.exName&&e.exName[k])||named[k]||keyName(k),
@@ -3256,6 +3349,18 @@ const MOBILITY_GUIDE={
  tips:['Court sports are hard on adductors — all that lateral push-off. Strong ones are genuinely protective.','Do not force the open position. A stretch you cannot control is where strains happen.'],
  watch:'hip adduction machine proper form'},
 
+'Bulgarian Split Squat':{pose:'split',kit:'A bench + dumbbells',brief:'Single-leg strength and knee control',
+ setup:['Stand about a stride in front of a bench, facing away from it.','Rest the top of your back foot on the bench behind you.','Nothing in your hands to begin with. Dumbbells at your sides once you own the movement.'],
+ steps:['Set the front foot far enough forward that the shin stays near vertical at the bottom.','Lower straight down until the back knee is just above the floor.','Keep the front knee tracking over the middle of the foot — do not let it fall inwards.','Drive up through the whole front foot, not the toes.','Finish every rep on one leg, then swap.'],
+ tips:['Start with bodyweight. It is much harder than it looks, and the balance demand is the training effect, not a nuisance.','Front knee drifting inwards is the exact fault this exercise exists to fix. Slow down, and hold a rack with one hand if you need to.','Basketball is played on one leg. This is the closest thing in the gym to the position you actually land in.','Two days of sore glutes the first few times is normal and not a problem.'],
+ watch:'bulgarian split squat proper form'},
+
+'Pogo Hops':{pose:'calf',kit:'Nothing',brief:'Small fast bounces — ankle stiffness',
+ setup:['Stand tall, feet hip-width, arms relaxed at your sides.'],
+ steps:['Bounce on the spot using your ankles only — the knees stay almost straight.','Spend as little time on the floor as you can. Think hot floor.','Keep them small. Two or three inches is plenty.','15 to 20 bounces, then stop.'],
+ tips:['This is a warm-up drill, not conditioning. It should never leave you breathing hard.','Stiff quick contacts are the whole point. Bending the knees and landing heavily makes it a squat jump, which is a different exercise and not this one.','This is where bounce actually starts — tendon stiffness rather than muscle. It costs nothing and feeds straight into your jump and your Achilles.'],
+ watch:'pogo hops ankle stiffness plyometric drill'},
+
 'Cat–Cow':{pose:'rotate',kit:'Floor mat',brief:'Wakes the spine up segment by segment',
  setup:['On hands and knees. Hands under shoulders, knees under hips.'],
  steps:['Breathe out and round your back towards the ceiling, tucking your chin and your tailbone.','Breathe in and reverse it — chest forward, tailbone up, look slightly ahead.','Move slowly enough that you feel it travel one vertebra at a time.'],
@@ -3525,7 +3630,7 @@ function genRecovery(targetKey,mins,venue){
 }
 
 const POOL={
-  legs:['Back Squat','Linear Hack Squat','Seated Leg Press','Goblet Squat','Dumbbell Romanian Deadlift',
+  legs:['Back Squat','Linear Hack Squat','Seated Leg Press','Goblet Squat','Bulgarian Split Squat','Dumbbell Romanian Deadlift',
         'Seated Leg Curl','Single-leg DB RDL','Standing DB Calf Raise','Leg Press Calf Raise'],
   push:['Chest Press','DB Bench Press','Incline Press','Shoulder Press','DB Overhead Press',
         'Assisted Dip','Cable Triceps Pushdown'],
@@ -3950,7 +4055,7 @@ function vRandom(){
     <div class="note">${w.rpeNote}</div></div>`;
 
     const wk = w.custom?'general' : w.focus==='legs'?'lower' : ['push','pull','upper','arms'].includes(w.focus)?'upper' : 'general';
-    h+=warmupBlock(wk);
+    h+=warmupBlock(wk,ds,null);
     h+=`<h3 style="margin:0 0 8px">Log your sets</h3>`;
     w.ex.forEach(x=>{
       const sets=(w.sets&&w.sets[x.k])||[];
@@ -3969,7 +4074,7 @@ function vRandom(){
         <div class="exTools"><button onclick="startRest(${/Squat|Deadlift|RDL|Press|Row|Pulldown|Dip|Chin/.test(x.n)?90:60},'${x.n.replace(/'/g,'')}')">Rest ${/Squat|Deadlift|RDL|Press|Row|Pulldown|Dip|Chin/.test(x.n)?'90s':'60s'}</button></div>
       </div>`;
     });
-    h+=stretchBlock(wk);
+    h+=stretchBlock(wk,ds);
     h+=recoveryBlock(ds,i);
     h+=`<div class="card"><h3>How was that?</h3>
       <div class="sec mt" style="margin-bottom:2px">Difficulty</div>${adhocScale('rpe','diff')}
@@ -4151,7 +4256,7 @@ window.finishAdhoc=()=>{ toggleBonus(curDate(),'adhoc'); };
    count and keeps the last one safe.
    ============================================================ */
 const WARMUP={
-  lower:{mins:8,items:['Easy cardio','Leg swings','Bodyweight squats','Glute bridges','Ramp-up sets']},
+  lower:{mins:8,items:['Easy cardio','Leg swings','Bodyweight squats','Pogo Hops','Ramp-up sets']},
   upper:{mins:6,items:['Easy cardio','Arm circles','Band or cable pull-aparts','Scapular hangs','Light sets']},
   general:{mins:6,items:['Easy cardio','Leg swings','Arm circles','Bodyweight squats','Ramp-up sets']}
 };
@@ -4167,27 +4272,69 @@ const RECOVERY=[
   {mins:20, t:'20 min',    d:'Stretches, then sauna or hot tub. This is what the membership is for.'},
   {mins:30, t:'30 min',    d:'Full circuit — stretch, sauna, pool. Best on a day with nothing after it.'}
 ];
-function mobRow(n){
+function mobRow(n,ds,group,override){
   const g=guideFor(n);
-  return `<div class="wrow mob" onclick="openGuide(${JSON.stringify(n).replace(/"/g,'&quot;')})">
-    ${poseIcon(n)}
-    <div style="flex:1;min-width:0"><div class="wa">${n}</div><div class="wb">${g&&g.brief?g.brief:''}</div></div>
-    <div class="muted" style="font-size:18px">›</div>
+  const sub = override!=null ? override : (g&&g.brief?g.brief:'');
+  const on = ds? tickOn(ds,group,n) : false;
+  const tick = ds? `<button class="tick${on?' on':''}" onclick="event.stopPropagation();toggleTick('${ds}','${group}',${JSON.stringify(n).replace(/"/g,'&quot;')})" aria-label="Mark ${n} done">${on?I.check:''}</button>` : '';
+  return `<div class="wrow mob${on?' ticked':''}">
+    ${tick}
+    <div style="display:flex;gap:10px;align-items:center;flex:1;min-width:0" onclick="openGuide(${JSON.stringify(n).replace(/"/g,'&quot;')})">
+      ${poseIcon(n)}
+      <div style="flex:1;min-width:0"><div class="wa">${n}</div><div class="wb">${sub}</div></div>
+      <div class="muted" style="font-size:18px">›</div>
+    </div>
   </div>`;
 }
+// Ticks for warm-ups and stretches, stored against the day like everything else.
+function tickOn(ds,group,n){
+  const e=DB.log[ds]; return !!(e&&e[group]&&e[group][slug(n)]);
+}
+window.toggleTick=(ds,group,n)=>{
+  const e=DB.log[ds]||(DB.log[ds]={type:SCHEDULE[parse(ds).getDay()],sets:{}});
+  e[group]=e[group]||{};
+  const k=slug(n);
+  if(e[group][k]) delete e[group][k]; else e[group][k]=true;
+  save(); render();
+};
 function warmKind(type){ return type==='gymA'?'lower':type==='gymB'?'upper':'general'; }
 
-function warmupBlock(kind){
+// "Light sets" is useless as a generic instruction — it needs the actual lift
+// and the actual loads. Works them out from the first exercise of today's
+// session and the weight you are being pointed at.
+function rampText(ds,prog){
+  if(!prog||!prog.ex||!prog.ex.length) return null;
+  const x=prog.ex[0];
+  const vi=variantIdx(ds,x.k), V=exVariant(x,vi);
+  const sg=suggestWeight(x.k,V.t,vi,V.n);
+  const last=lastFor(x.k,ds,vi);
+  const work = sg ? sg.w : (last ? parseFloat(last.w) : null);
+  if(!work||isNaN(work)) return {name:V.n,line:null};
+  const inc=incFor(V.n);
+  const rnd=w=>Math.max(inc,Math.round(w/inc)*inc);
+  const isBar=BARBELL.includes(V.n);
+  return {name:V.n,
+    line:`${isBar?'empty bar':rnd(work*0.4)+'kg'} × 10, then ${rnd(work*0.6)}kg × 5. Working weight ${work}kg.`};
+}
+function warmupBlock(kind,ds,prog){
   const W=WARMUP[kind];
-  return `<details><summary>Warm-up · ${W.mins} min</summary>
+  const ramp=prog?rampText(ds,prog):null;
+  const nDone=ds?W.items.filter(n=>tickOn(ds,'warm',n)).length:0;
+  return `<details><summary>Warm-up · ${W.mins} min${nDone?` · ${nDone}/${W.items.length}`:''}</summary>
     <div class="sec mt" style="margin-bottom:8px">Do not skip this. It is the difference between a good first set and a wasted one.</div>
-    ${W.items.map(n=>mobRow(n)).join('')}
+    ${W.items.map(n=>mobRow(n,ds,'warm',
+      (/Light sets|Ramp-up sets/.test(n)&&ramp)
+        ? (ramp.line?`${ramp.name} — ${ramp.line}`
+                    :`${ramp.name} — two build-up sets before your first working set`)
+        : null)).join('')}
   </details>`;
 }
-function stretchBlock(kind){
-  return `<details><summary>Stretches · after the session</summary>
+function stretchBlock(kind,ds){
+  const items=STRETCH[kind];
+  const nDone=ds?items.filter(n=>tickOn(ds,'stretch',n)).length:0;
+  return `<details><summary>Stretches · after the session${nDone?` · ${nDone}/${items.length}`:''}</summary>
     <div class="sec mt" style="margin-bottom:8px">On the mats by the massage-gun station. Hold each one, do not bounce.</div>
-    ${STRETCH[kind].map(n=>mobRow(n)).join('')}
+    ${items.map(n=>mobRow(n,ds,'stretch')).join('')}
   </details>`;
 }
 function recoveryBlock(ds,ai){
