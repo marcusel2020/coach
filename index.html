@@ -341,6 +341,30 @@ td.num{overflow-wrap:anywhere}
 .ex.skipped{opacity:.5;border-style:dashed}
 .wrow.mob.ticked .wa{opacity:.55;text-decoration:line-through}
 .wrow.mob{display:flex;align-items:center;gap:10px}
+
+.exChange{border:0;background:transparent;padding:0;margin-top:10px}
+.exChange>summary{font-size:12.5px;color:var(--muted);font-weight:600;cursor:pointer;
+  list-style:none;padding:6px 0}
+.exChange>summary::-webkit-details-marker{display:none}
+.exChange>summary::after{content:' ▾'}
+.exChange[open]>summary::after{content:' ▴'}
+
+.xsmall{width:32px;height:32px;flex:0 0 32px;border-radius:9px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);font-size:14px;line-height:1;cursor:pointer;padding:0}
+.xsmall:active{background:var(--surface-2);color:var(--critical)}
+
+.suggest.warn{color:var(--warning)}
+
+.chBar{display:flex;gap:5px;margin-top:12px}
+.chBox{flex:1;aspect-ratio:1;border-radius:8px;border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
+  color:var(--muted);font-variant-numeric:tabular-nums}
+.chBox.ok{background:var(--good);border-color:var(--good);color:#06231d}
+.chBox.miss{border-color:var(--critical);color:var(--critical)}
+.chBox.now{border-color:var(--warning);color:var(--warning)}
+.chBox.fut{opacity:.45}
+.chNeed{display:flex;gap:10px;align-items:flex-start;padding:9px 0;font-size:13.5px;line-height:1.45}
+.chNeed input{margin-top:2px;width:18px;height:18px;flex:0 0 18px}
 </style>
 </head>
 <body>
@@ -392,28 +416,31 @@ const Store=(()=>{
 let START='2026-08-24';             // Monday of week 1 — overridden per profile
 const PROGRAMME_M={
   gymA:{
-    id:'gymA', label:'Gym — Lower', sub:'Legs, hinge and single-leg · main strength session',
+    id:'gymA', label:'Gym — Lower', sub:'Legs, hinge, single-leg and trunk',
     ex:[
       {n:'Back Squat', t:'3 × 5', k:'squat',
        note:'RPE 8 — the main strength driver. Olympic rack. Goblet squat for the first 2–3 weeks if technique needs work.',
        alts:[
         {n:'Linear Hack Squat', note:'Plate-loaded. Same pattern with the back supported — you will handle more load than free-squatting.'},
         {n:'Seated Leg Press',  note:'Fewer stabiliser demands, so go heavier. Full range, do not bounce out of the bottom.'},
-        {n:'Goblet Squat',      t:'3 × 10', note:'DB at chest, free weights area. Grip limits load, so run 3 × 10 instead.'}
+        {n:'Goblet Squat',      t:'3 × 10', note:'DB at chest, free weights area. Grip limits load, so run 3 × 10 instead.'},
+        {n:'Seated Leg Extension', t:'3 × 12', note:'Life Fitness leg extension. Quads only — no hinge, no trunk. A fallback when the racks are gone or the knee is grumbling.'}
        ]},
       {n:'Bulgarian Split Squat', t:'2 × 8/leg', k:'split',
        note:'Bodyweight to start. The knee must track over the foot — this is the position you land in on court.',
        alts:[
         {n:'Suitcase Lunge', t:'2 × 8/leg', note:'One DB at your side. Walking version, same single-leg demand.'},
         {n:'Slow Step-down', t:'3 × 8/leg', note:'Off a step, three seconds down. Easier to control if balance is the limit.'},
-        {n:'Seated Leg Press', t:'3 × 10/leg', note:'One leg at a time on the platform. Loses the balance demand, keeps the strength.'}
+        {n:'Seated Leg Press', t:'3 × 10/leg', note:'One leg at a time on the platform. Loses the balance demand, keeps the strength.'},
+        {n:'Seated Leg Extension', t:'3 × 12', note:'Quads only, both legs. Last resort — it keeps the muscle working but trains none of the balance.'}
        ]},
       {n:'Dumbbell Romanian Deadlift', t:'3 × 8', k:'rdl',
        note:'RPE 7 — controlled, not to failure. Hinge at the hip, soft knees, feel the hamstrings load.',
        alts:[
         {n:'Barbell RDL',            note:'Same movement off the rack. Better once your form is grooved.'},
         {n:'Single-leg DB RDL',      t:'3 × 8/leg', note:' with a lighter DB. Adds a balance demand that carries to cutting.'},
-        {n:'Seated Leg Curl',        note:'Machine. Knee-flexion rather than a hinge — different emphasis, but it still trains the hamstrings.'}
+        {n:'Seated Leg Curl',        t:'3 × 10', note:'Machine. Knee-flexion rather than a hinge — different emphasis, but it still trains the hamstrings.'},
+        {n:'Glute Drive',            t:'3 × 10', note:'Loaded hip thrust. Glute-dominant rather than hamstring, and it loads the top of the range a hinge cannot reach.'}
        ]},
       {n:'Standing DB Calf Raise', t:'3 × 12–15', k:'calf',
        note:'Full stretch at the bottom, pause at the top. Calf and Achilles capacity — the tissue that ends most basketball careers.',
@@ -422,7 +449,7 @@ const PROGRAMME_M={
         {n:'Single-leg Step Calf Raise', t:'3 × 12/leg', note:'Bodyweight off a step. Needs nothing at all.'}
        ]},
       {n:'Pallof Press', t:'2 × 10/side', k:'pallof',
-       note:'Cable at chest height. Resist the rotation — that is the whole exercise.',
+       note:'Cable at chest height. Resist the rotation — that is the whole exercise. This is trunk work, not leg work: each session carries one core movement, and this is the lower day’s.',
        alts:[
         {n:'Cable Crossover (single arm)', note:'Set one side at chest height. Same anti-rotation demand.'},
         {n:'Abdominal Machine',           note:'Flexion rather than anti-rotation. A lesser substitute, but it beats nothing.'},
@@ -432,7 +459,7 @@ const PROGRAMME_M={
     tip:'Friday is 24h after Thursday’s game, so your legs will not feel fresh — and it is still the best slot there is, because it leaves three clear days before Monday. Train to a solid RPE 8 and do not chase a PR on tired legs. Everything here is lower body or trunk: this is the session that builds the knees and ankles you want to still have at 60.'
   },
   gymB:{
-    id:'gymB', label:'Gym — Upper', sub:'Push, pull and posture · legs untouched',
+    id:'gymB', label:'Gym — Upper', sub:'Push, pull, posture and arms · legs untouched',
     ex:[
       {n:'Shoulder Press', t:'3 × 6–8', k:'ohp',
        note:'Pin-loaded machine. Press without letting the ribs flare.',
@@ -469,15 +496,15 @@ const PROGRAMME_M={
         {n:'Band or cable pull-aparts', t:'3 × 20', note:'Same job, simpler setup. Slow and controlled, no shrugging.'},
         {n:'Prone Y-T-W', t:'3 × 8 each', note:'On an incline bench, no weight to start. Harder than it looks.'}
        ]},
-      {n:'Farmer’s Carry', t:'2 × 20–30m', k:'carry',
-       note:'Heavy DBs or kettlebells. Tall posture, brace, walk. Grip and trunk with minimal leg cost.',
+      {n:'EZ-Bar Preacher Curl', t:'3 × 10–12', k:'arm',
+       note:'Preacher bench, EZ bar. The only slot in the week that trains the arms directly.',
        alts:[
-        {n:'Heavy DB Hold',    t:'3 × 30s', note:'Stand and hold if space is tight. Same grip and trunk demand, no walking.'},
-        {n:'Dead Bug',         t:'2 × 10/side', note:'Floor, no equipment, slow. Never unavailable.'},
-        {n:'Abdominal Machine', note:'Not a carry, but it keeps the trunk working when the floor is packed.'}
+        {n:'Cable Triceps Pushdown', t:'3 × 12–15', note:'Different muscle, same slot — take it if the preacher bench has gone.'},
+        {n:'Assisted Chin-up', t:'3 × 6–8', note:'Biceps under a far bigger load, and it builds towards an unassisted chin-up.'},
+        {n:'Farmer’s Carry', t:'2 × 20–30m', note:'The original. Grip, trunk and posture under load — take it if you fancy it.'}
        ]}
     ],
-    tip:'Tuesday sits 24h after Monday’s game and 48h before Thursday’s, so nothing here touches your legs — they get the whole gap. Deliberately pull-biased: three pulling movements to two pushes, because shoulders that sit forward do not get fixed by stretching the front, only by strengthening the back.'
+    tip:'Tuesday sits 24h after Monday’s game and 48h before Thursday’s, so nothing here touches your legs — they get the whole gap. Deliberately pull-biased: three pulling movements to two pushes, because shoulders that sit forward do not get fixed by stretching the front, only by strengthening the back. The last slot is arms — the one bit of direct arm work in the week.'
   },
   bball:{ id:'bball', label:'Basketball', sub:'2 hours · the priority', ex:[], tip:'This is what the whole programme serves. Turn up fresh.' },
   open:{  id:'open',  label:'Open day',   sub:'Nothing required — extras only if you fancy them', ex:[],
@@ -609,7 +636,8 @@ const SHAPE={
   settings:  {kind:'obj',  def:SETTINGS_DEFAULT},
   rewards:   {kind:'newest'},
   notes:     {kind:'byDate'},                 // Monday of a week: {text, at, by}
-  recovery:  {kind:'byDate', of:'workouts'}   // date: [recovery session, ...]
+  recovery:  {kind:'byDate', of:'workouts'},  // date: [recovery session, ...]
+  challenges:{kind:'list', id:v=>v.id}         // time-boxed streaks with a reward
 };
 
 // Fill in anything missing and repair old shapes, without touching
@@ -675,6 +703,23 @@ if(!DB.settings.goalRevised2026){
   Store.set('coach.db',DB);
 }
 
+// Seeded from the challenge Marcus set himself: a week at the club every day
+// with food logged, for an Owala bottle. Moved to a Friday start and made
+// repeating on 2 Sept, so a broken run waits for the next Friday rather than
+// restarting on the spot. Editable and deletable like any other.
+if(DB.settings.owalaSeed!==2){
+  DB.challenges=DB.challenges||[];
+  const owala={id:'owala',reward:'Owala bottle',from:'2026-09-11',to:'2026-09-17',
+               needs:['club','fuel'],repeat:true,claimed:false};
+  const i=DB.challenges.findIndex(c=>c.id==='owala');
+  // never overwrite a claimed one, or dates he has since set himself
+  if(i<0) DB.challenges.push(owala);
+  else if(!DB.challenges[i].claimed && !DB.settings.owalaSeed)
+    DB.challenges[i]={...DB.challenges[i],...owala};
+  DB.settings.owalaSeed=2;
+  Store.set('coach.db',DB);
+}
+
 const isAway=s=>DB.away.some(a=>s>=a.from&&s<=a.to);
 function weekAway(mondayISO){
   const m=parse(mondayISO);
@@ -699,6 +744,44 @@ function weekPartlyAway(mondayISO){
 const notStarted=()=>todayISO()<START_FOR();
 const daysToStart=()=>Math.max(0,Math.round((parse(START_FOR())-parse(todayISO()))/86400000));
 
+/* ------------------------------------------------------------
+   CALLING OFF A SESSION
+   You can void a planned session and say what you did instead.
+   What it costs depends entirely on the replacement — a like-for-
+   like swap costs nothing, because nothing the score measures was
+   lost. Anything less is half credit. Nothing is a miss, and one
+   miss a week is still free.
+   Only ever on the day itself or afterwards — never in advance,
+   because deciding on Sunday that you will skip Thursday is not
+   a replacement, it is a plan to miss.
+   ------------------------------------------------------------ */
+const REPLACE={
+  bball:[
+    {k:'full', credit:1,   t:'Another court sport',
+     eg:'Padel, tennis, squash, badminton, 5-a-side, a different game',
+     why:'Multidirectional, competitive, an hour or more — the same demands under a different name. Counts in full.'},
+    {k:'part', credit:0.5, t:'A hard training session instead',
+     eg:'A full gym session, BLAZE, a long run',
+     why:'Real work, but it is not the sport. Half credit — basketball is the thing this whole programme serves.'},
+    {k:'none', credit:0,   t:'Nothing, or something light',
+     eg:'A walk, a swim, the spa, or an evening off',
+     why:'Counts as a miss. One a week is free by design, so this is not a disaster — two is.'}
+  ],
+  gym:[
+    {k:'full', credit:1,   t:'An equivalent lifting session',
+     eg:'A random or custom workout, a PT session, or this day done elsewhere in the week',
+     why:'Resistance work of similar length and effort. Counts in full.'},
+    {k:'part', credit:0.5, t:'Something lighter',
+     eg:'BLAZE, a short session, a class with weights in it',
+     why:'Some of the stimulus, not all of it. Half credit.'},
+    {k:'none', credit:0,   t:'Nothing, or cardio only',
+     eg:'A run, a swim, the spa, or an evening off',
+     why:'Counts as a miss. Cardio is good for you and does not replace lifting.'}
+  ]
+};
+const replaceKind=type=>type==='bball'?'bball':'gym';
+const fmtHit=n=>Number.isInteger(n)?String(n):n.toFixed(1);
+
 function weekStatus(mondayISO){
   const m=parse(mondayISO), today=todayISO();
   const days=[...Array(7)].map((_,i)=>iso(addD(m,i)));
@@ -719,14 +802,16 @@ function weekStatus(mondayISO){
     // Gym sessions count wherever in the week you actually did them —
     // the day is a default, not a requirement. Basketball is date-fixed.
     if(c.type==='gymA'||c.type==='gymB'){
-      if(days.some(dd=>{const x=DB.log[dd];return x&&x.done&&x.type===c.type;})) hit++;
-    } else if(e&&e.done) hit++;
+      if(days.some(dd=>{const x=DB.log[dd];return x&&x.done&&x.type===c.type;})){ hit++; return; }
+    } else if(e&&e.done){ hit++; return; }
+    // Not done as planned. Did you swap it for something?
+    if(e&&e.replaced) hit += (e.replaced.credit||0);
   });
 
   const of=Math.max(1,CORE.filter(c=>!isAway(days[(c.dow+6)%7])).length);
   const complete=days[6]<today;
   let state;
-  if(!complete) state = hit>=3?'ontrack' : (due-hit)>=2 ? 'slipping' : 'inprogress';
+  if(!complete) state = hit>=of-1?'ontrack' : (due-hit)>=2 ? 'slipping' : 'inprogress';
   else state = hit>=of-1 ? 'ontrack' : 'offtrack';
   return{state,hit,of,due,days,complete,partial:weekPartlyAway(mondayISO)};
 }
@@ -819,8 +904,18 @@ window.applySwap=k=>{
   const el=document.getElementById('swapPick'); if(!el) return;
   const n=el.value, ds=curDate();
   const e=DB.log[ds]||(DB.log[ds]={type:SCHEDULE[parse(ds).getDay()],sets:{}});
-  e.swapEx=e.swapEx||{}; e.swapEx[k]={n};
-  if(e.sets&&e.sets[k]) delete e.sets[k];        // different movement, different loads
+  const had=(e.sets&&e.sets[k]||[]).some(v=>v&&(v.w||v.r));
+  // Correcting the record after the fact is the common case, so ask rather
+  // than silently binning what you logged.
+  const keep = had ? confirm('You have sets logged here.\n\nOK  — keep them (you are correcting what this exercise was)\nCancel — clear them (you are about to do something different)') : false;
+  // A swap is a different movement, so the old target rarely fits. Take the
+  // set count from the slot and the reps from your own history.
+  const prog=PROGRAMME[e.type||SCHEDULE[parse(ds).getDay()]];
+  const x=(prog&&prog.ex||[]).find(y=>y.k===k);
+  const nSets=(String(x&&x.t||'3 × 8').match(/^(\d+)/)||[])[1]||'3';
+  let reps='8–12'; try{ reps=magicHint(n,ds).reps||reps; }catch(err){}
+  e.swapEx=e.swapEx||{}; e.swapEx[k]={n,t:`${nSets} × ${reps}`};
+  if(!keep && e.sets&&e.sets[k]) delete e.sets[k];
   if(e.exName) delete e.exName[k];
   if(e.skipped) delete e.skipped[k];
   SWAP_FOR=null; save(); render();
@@ -831,6 +926,13 @@ window.clearSwap=k=>{
   if(e.sets&&e.sets[k]) delete e.sets[k];
   if(e.exName) delete e.exName[k];
   SWAP_FOR=null; save(); render();
+};
+window.toggleExDone=k=>{
+  const ds=curDate();
+  const e=DB.log[ds]||(DB.log[ds]={type:SCHEDULE[parse(ds).getDay()],sets:{}});
+  e.exDone=e.exDone||{};
+  if(e.exDone[k]) delete e.exDone[k]; else { e.exDone[k]=true; if(e.skipped) delete e.skipped[k]; }
+  save(); render();
 };
 /* Skipping is a decision, not an absence. Recording it means a blank row
    later reads as "not done yet" rather than "quietly dropped". */
@@ -1304,6 +1406,222 @@ function poseIcon(name){
   </button>`;
 }
 
+/* Calling a session off, and saying what took its place. Only shown on a
+   core session (basketball or gym) that has not been marked complete, and
+   only on the day itself or later — deciding in advance that you will skip
+   Thursday is not a replacement, it is a plan to miss. */
+let REPL_OPEN=false;
+function replaceCard(ds,type,e){
+  if(!['bball','gymA','gymB'].includes(type)) return '';
+  if(e.done) return '';
+  if(ds>todayISO()) return '';
+  const opts=REPLACE[replaceKind(type)];
+
+  if(e.replaced){
+    const o=opts.find(x=>x.k===e.replaced.tier)||opts[2];
+    const tone=o.credit>=1?'b-info':o.credit?'b-warn':'b-bad';
+    return `<div class="banner ${tone}">${I.alert}<div>
+      <b>Called off${e.replaced.with?` — did ${e.replaced.with} instead`:''}.</b>
+      ${o.credit>=1?'Counts in full.':o.credit?'Counts as half.':'Counts as a miss.'} ${o.why}
+      <button class="btn ghost mt" onclick="undoReplace('${ds}')">Undo — I did the session after all</button>
+    </div></div>`;
+  }
+  if(!REPL_OPEN){
+    return `<button class="btn ghost" style="margin-bottom:14px" onclick="openReplace()">Cannot do this session — swap or call it off</button>`;
+  }
+  return `<div class="card"><h3>What is happening instead?</h3>
+    <div class="sec mt">Be honest here. The number is only worth anything if it means something.</div>
+    <div class="mt"><label class="f">What did you do</label>
+      <input id="replWith" placeholder="${replaceKind(type)==='bball'?'Padel, 5-a-side…':'Random workout, BLAZE…'}"></div>
+    ${opts.map(o=>`<button class="btn mt" style="text-align:left;white-space:normal;line-height:1.45" onclick="setReplace('${ds}','${o.k}')">
+      <b>${o.t}</b> · ${o.credit>=1?'counts in full':o.credit?'half credit':'counts as a miss'}
+      <div class="muted" style="font-weight:400;margin-top:3px">${o.eg}</div>
+    </button>`).join('')}
+    <button class="btn ghost mt" onclick="closeReplace()">Cancel</button>
+    <div class="note">You can only do this on the day or afterwards, never in advance.</div>
+  </div>`;
+}
+window.openReplace=()=>{ REPL_OPEN=true; render(); };
+window.closeReplace=()=>{ REPL_OPEN=false; render(); };
+window.setReplace=(ds,tier)=>{
+  const opts=REPLACE[replaceKind((DB.log[ds]||{}).type||SCHEDULE[parse(ds).getDay()])];
+  const o=opts.find(x=>x.k===tier); if(!o) return;
+  const el=document.getElementById('replWith');
+  const e=DB.log[ds]||(DB.log[ds]={type:SCHEDULE[parse(ds).getDay()],sets:{}});
+  e.replaced={tier,credit:o.credit,with:(el&&el.value||'').trim(),at:todayISO()};
+  e.done=false;
+  REPL_OPEN=false; save(); render();
+};
+window.undoReplace=ds=>{ const e=DB.log[ds]; if(!e) return;
+  delete e.replaced; save(); render(); };
+
+/* ============================================================
+   CHALLENGES
+   ------------------------------------------------------------
+   A reward ladder rewards totals. This rewards a run of days —
+   a fixed window where every single day has to qualify. Short by
+   design: seven days is long enough to be worth something and
+   short enough that missing Tuesday still ruins it, which is
+   the whole point.
+   ============================================================ */
+const CH_NEEDS={
+  club:{t:'A visit to the club', d:'Gym, pool, spa, courts or a class — anything on site counts.'},
+  fuel:{t:'Food logged',         d:'Calories or protein ticked off on the Nutrition page.'},
+  move:{t:'Something active',    d:'Any session, activity or recovery work logged that day.'}
+};
+function clubVisitOn(ds){
+  const e=DB.log[ds];
+  if(e&&e.done&&CLUB_TYPES.includes(e.type)) return true;
+  if(adhocList(ds).some(w=>w.accepted)) return true;
+  if(recList(ds).length) return true;
+  if((DB.visits||[]).some(v=>v.date===ds)) return true;
+  if((DB.activities||[]).some(a=>a.date===ds&&CLUB_ACT.includes(a.sub))) return true;
+  return false;
+}
+const fuelOn=ds=>{ const f=(DB.fuel||{})[ds]||{}; return !!(f.kcal||f.protein); };
+function moveOn(ds){
+  const e=DB.log[ds];
+  if(e&&e.done) return true;
+  if(adhocList(ds).some(w=>w.accepted)) return true;
+  if(recList(ds).length) return true;
+  return (DB.activities||[]).some(a=>a.date===ds);
+}
+const CH_TEST={club:clubVisitOn,fuel:fuelOn,move:moveOn};
+
+const chDayOk=(ch,ds)=>(ch.needs||[]).every(k=>CH_TEST[k]?CH_TEST[k](ds):true);
+const chLen=ch=>Math.max(1,Math.round((parse(ch.to)-parse(ch.from))/86400000)+1);
+const daysBetween=(from,to)=>{ const out=[]; let d=parse(from);
+  while(iso(d)<=to && out.length<120){ out.push(iso(d)); d=addD(d,1); } return out; };
+
+/* Which run are we actually on? A repeating challenge is a fixed-length window
+   that rolls forward by its own length — break it and you wait for the next
+   one to come round rather than starting again on the spot. That waiting is
+   the point: it is what makes a Tuesday slip cost something. */
+function chWindow(ch){
+  const len=chLen(ch), today=todayISO();
+  let from=ch.from, attempt=1;
+  if(!ch.repeat) return {from,to:ch.to,len,attempt,last:true};
+  for(let i=0;i<520;i++){
+    const to=iso(addD(parse(from),len-1));
+    if(today<=to) return {from,to,len,attempt};                  // upcoming, or the one we are in
+    if(daysBetween(from,to).every(d=>chDayOk(ch,d)))
+      return {from,to,len,attempt,passed:true};                  // a completed run — stop here so it can be claimed
+    from=iso(addD(parse(from),len)); attempt++;                   // that run failed; the next one starts straight after
+  }
+  return {from,to:iso(addD(parse(from),len-1)),len,attempt};
+}
+function chState(ch){
+  const win=chWindow(ch), today=todayISO();
+  const days=daysBetween(win.from,win.to);
+  const done=days.filter(d=>d<=today&&chDayOk(ch,d));
+  const missed=days.filter(d=>d<today&&!chDayOk(ch,d));
+  const left=days.filter(d=>d>today);
+  const nextFrom=iso(addD(parse(win.from),win.len));
+  let state;
+  if(ch.claimed)              state='claimed';
+  else if(days[0]>today)      state='upcoming';
+  else if(missed.length)      state='broken';
+  else if(!left.length && !days.some(d=>d===today&&!chDayOk(ch,d))) state='won';
+  else                        state='running';
+  return {days,done,missed,left,state,win,nextFrom,attempt:win.attempt};
+}
+function chBar(ch){
+  const st=chState(ch), today=todayISO();
+  return `<div class="chBar">${st.days.map(d=>{
+    const cls = d>today ? 'fut' : chDayOk(ch,d) ? 'ok' : d===today ? 'now' : 'miss';
+    return `<div class="chBox ${cls}" title="${fmtD(d)}"><span>${parse(d).getDate()}</span></div>`;
+  }).join('')}</div>`;
+}
+function challengeCard(ch,compact){
+  const st=chState(ch);
+  const needTxt=(ch.needs||[]).map(k=>CH_NEEDS[k].t.toLowerCase()).join(' + ');
+  const dayName=d=>parse(d).toLocaleDateString('en-GB',{weekday:'long'});
+  const restart = ch.repeat
+    ? ` The next run starts ${dayName(st.nextFrom)} ${fmtD(st.nextFrom).replace(/^\w+, /,'')}.`
+    : ' Reset the dates and start it again when you are ready.';
+  const msg={
+    upcoming:`Starts ${fmtD(st.win.from)}. ${st.days.length} days, every one of them.`,
+    running:`${st.done.length} of ${st.days.length} banked${chDayOk(ch,todayISO())?' — today is already in':' · today still to do'}.`,
+    broken:`Missed ${st.missed.length} day${st.missed.length===1?'':'s'}, so this run is gone.${restart}`,
+    won:`All ${st.days.length} days. Go and claim it.`,
+    claimed:`Done and claimed.`
+  }[st.state];
+  return `<div class="card">
+    <div class="row"><div style="flex:1;min-width:0">
+      <h3>${ch.reward||ch.name}</h3>
+      <div class="muted">${fmtD(st.win.from).replace(/^\w+, /,'')} – ${fmtD(st.win.to).replace(/^\w+, /,'')} · ${needTxt} every day${ch.repeat&&st.attempt>1?` · attempt ${st.attempt}`:''}</div>
+    </div>${st.state==='won'?pill('ontrack'):st.state==='broken'?pill('offtrack'):st.state==='claimed'?pill('bonus'):pill('inprogress')}</div>
+    ${chBar(ch)}
+    <div class="note">${msg}</div>
+    ${st.state==='won'&&!ch.claimed?`<button class="btn primary mt" onclick="claimChallenge('${ch.id}')">Claim it</button>`:''}
+    ${compact?'':`<div class="btnrow mt">
+      <button class="btn ghost" onclick="editChallenge('${ch.id}')">Edit</button>
+      <button class="btn danger" onclick="rmChallenge('${ch.id}')">Delete</button>
+    </div>`}
+  </div>`;
+}
+// A repeating challenge stays on Today even when the current run is broken —
+// seeing the next start date is the useful part.
+const liveChallenges=()=>(DB.challenges||[]).filter(c=>{
+  const st=chState(c);
+  if(st.state==='claimed') return false;
+  return c.repeat || ['running','upcoming','won'].includes(st.state); });
+
+function vChallenge(){
+  let h=backBar();
+  const all=(DB.challenges||[]);
+  if(CH_EDIT!==null){
+    const ch=all.find(c=>c.id===CH_EDIT)||{id:'',reward:'',from:todayISO(),to:iso(addD(new Date(),6)),needs:['club','fuel']};
+    h+=`<div class="card"><h3>${CH_EDIT?'Edit challenge':'New challenge'}</h3>
+      <div class="mt"><label class="f">What you get</label>
+        <input id="chReward" value="${ch.reward||''}" placeholder="Owala bottle"></div>
+      <div class="grid2 mt">
+        <div><label class="f">From</label><input type="date" id="chFrom" value="${ch.from}"></div>
+        <div><label class="f">To</label><input type="date" id="chTo" value="${ch.to}"></div>
+      </div>
+      <label class="f mt">Every day needs</label>
+      ${Object.keys(CH_NEEDS).map(k=>`<label class="chNeed"><input type="checkbox" id="chN_${k}" ${(ch.needs||[]).includes(k)?'checked':''}>
+        <span><b>${CH_NEEDS[k].t}</b><br><span class="muted">${CH_NEEDS[k].d}</span></span></label>`).join('')}
+      <label class="chNeed" style="border-top:1px solid var(--border);margin-top:8px;padding-top:12px">
+        <input type="checkbox" id="chRepeat" ${ch.repeat?'checked':''}>
+        <span><b>Start again if I break it</b><br><span class="muted">Break the run and the next one begins the same weekday after this window ends — no restarting on the spot.</span></span></label>
+      <div class="btnrow mt">
+        <button class="btn primary" onclick="saveChallenge('${CH_EDIT||''}')">Save</button>
+        <button class="btn" onclick="editChallenge(null)">Cancel</button>
+      </div>
+      <div class="note">Make it something you actually want, and keep the window short. A run you can still ruin on day six is what makes it work.</div>
+    </div>`;
+    view.innerHTML=h; return;
+  }
+  h+=`<button class="btn primary" style="margin-bottom:14px" onclick="editChallenge('')">New challenge</button>`;
+  if(!all.length){
+    h+=`<div class="banner b-info">${I.alert}<div>Nothing running. A challenge is a fixed window where <b>every</b> day has to qualify — different from the reward ladder, which counts totals and forgives a gap.</div></div>`;
+    view.innerHTML=h; return;
+  }
+  all.slice().sort((a,b)=>a.from<b.from?1:-1).forEach(c=>{ h+=challengeCard(c); });
+  view.innerHTML=h;
+}
+let CH_EDIT=null;
+window.editChallenge=id=>{ CH_EDIT=id; window.scrollTo(0,0); render(); };
+window.saveChallenge=id=>{
+  const g=x=>document.getElementById(x);
+  const needs=Object.keys(CH_NEEDS).filter(k=>g('chN_'+k)&&g('chN_'+k).checked);
+  const rec={id:id||('ch'+Date.now()), reward:(g('chReward').value||'').trim()||'A reward',
+             from:g('chFrom').value, to:g('chTo').value, needs:needs.length?needs:['move'],
+             repeat:!!(g('chRepeat')&&g('chRepeat').checked), claimed:false};
+  if(rec.to<rec.from){ alert('The end date is before the start date.'); return; }
+  DB.challenges=DB.challenges||[];
+  const i=DB.challenges.findIndex(c=>c.id===rec.id);
+  if(i>=0) DB.challenges[i]={...DB.challenges[i],...rec}; else DB.challenges.push(rec);
+  CH_EDIT=null; save(); render();
+};
+window.rmChallenge=id=>{ if(!confirm('Delete this challenge?')) return;
+  DB.challenges=(DB.challenges||[]).filter(c=>c.id!==id); save(); render(); };
+window.claimChallenge=id=>{
+  const c=(DB.challenges||[]).find(x=>x.id===id); if(!c) return;
+  c.claimed=true; c.claimedAt=todayISO(); save(); render();
+};
+
 /* ============================================================
    ICONS / PILLS
    ============================================================ */
@@ -1350,7 +1668,7 @@ function render(){
     pre ? pill(daysToStart()===1?'starting':'soon') : pill(ws.state);
   const MT={reward:'Reward ladder',membership:'Membership',            fuel:'Nutrition',review:'Progress review',niggles:'Niggles',random:'Random workout',
             log:'Log an activity',library:'Library',sync:'Sync details',history:'History',
-            recovery:'Recovery session',equipment:'Equipment library'};
+            recovery:'Recovery session',equipment:'Equipment library',challenge:'Challenges'};
   const T={today:'Today',week:'This week',progress:'Progress',
            more:MORE?MT[MORE]:'More',plan:'The plan'};
   document.getElementById('hdrTitle').textContent=T[TAB];
@@ -1361,7 +1679,7 @@ function render(){
   if(TAB==='more'){ MORE?({reward:vReward,membership:vMembership,
       fuel:vFuel,review:vReview,niggles:vNiggles,random:vRandom,log:vLog,
       library:vLibrary,sync:vSync,history:vHistory,
-      recovery:vRecovery,equipment:vEquipment})[MORE]() : vMore(); }
+      recovery:vRecovery,equipment:vEquipment,challenge:vChallenge})[MORE]() : vMore(); }
   else ({today:vToday,week:vWeek,progress:vProgress,plan:vPlan})[TAB]();
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===TAB));
 }
@@ -1411,9 +1729,11 @@ function vToday(){
   h+=`<div class="card">
     <div class="row"><div>
       <h2>${S.label}</h2><div class="sec">${S.sub}</div>
-    </div>${e.done?pill('ontrack'):''}</div>
+    </div>${e.done?pill('ontrack'):e.replaced?pill(e.replaced.credit>=1?'ontrack':e.replaced.credit?'slipping':'offtrack'):''}</div>
     ${S.tip?`<div class="note">${S.tip}</div>`:''}
   </div>`;
+  h+=replaceCard(ds,type,e);
+  if(ds===todayISO()) liveChallenges().forEach(c=>{ h+=challengeCard(c,true); });
 
   if(isGym||(e.type==='gymA'||e.type==='gymB')){
     const key=e.type||type, prog=PROGRAMME[key];
@@ -1427,12 +1747,13 @@ function vToday(){
         const swap=((DB.log[ds]||{}).swapEx||{})[x.k];
         const V=exVariant(x,vi,swap);
         const skipped=((DB.log[ds]||{}).skipped||{})[x.k];
+        const exDone=((DB.log[ds]||{}).exDone||{})[x.k];
         const sets=(e.sets&&e.sets[x.k])||[];
         const last=lastFor(x.k,ds,vi);
         const targetReps=(String(V.t).match(/×\s*([\d–—-]+)/)||[])[1]||'';
         const recW = last?last.w:'';
         const nRows = Math.max(3,sets.length);
-        h+=`<div class="ex${skipped?' skipped':sets.length?' done':''}">
+        h+=`<div class="ex${skipped?' skipped':(exDone||sets.length)?' done':''}">
           <div class="top">
             <div style="flex:1;min-width:0">
               <div class="nm">${V.n}${vi?` <span class="muted" style="font-weight:600">· sub ${vi}</span>`:''}</div>
@@ -1450,34 +1771,33 @@ function vToday(){
           ${(()=>{const sg=suggestWeight(x.k,V.t,vi,V.n);
             const cur=sets.find(v=>v&&v.w);
             const bar=BARBELL.includes(V.n)&&cur?`<div class="plate">${plateText(parseFloat(cur.w))}</div>`:'';
-            return (sg?`<div class="suggest">Suggested: ${sg.w}kg — ${sg.why}</div>`:'')+bar;})()}
+            return (sg?`<div class="suggest${sg.warn?' warn':''}">${sg.warn?'Check this':'Suggested'}: ${sg.w}kg — ${sg.why}</div>`:'')+bar;})()}
           <div class="exTools">
             ${lastSession(x.k,ds,vi)?`<button onclick="repeatLast('${x.k}',${vi})">Same as last time</button>`:''}
             <button onclick="startRest(${/Squat|Deadlift|RDL|Press|Row|Pulldown|Dip|Chin/.test(V.n)?90:60},'${V.n.replace(/'/g,'')}')">Rest ${/Squat|Deadlift|RDL|Press|Row|Pulldown|Dip|Chin/.test(V.n)?'90s':'60s'}</button>
           </div>
           <div class="note">${V.note}</div>
-          <div class="exTools">
-            <button onclick="pickSwap('${x.k}')">${V.manual?'Change what you swapped in':'Swap for something else'}</button>
-            ${V.manual?`<button onclick="clearSwap('${x.k}')">Back to ${x.n}</button>`:''}
-            <button onclick="toggleSkip('${x.k}')">${skipped?'Skipped — undo':'Skip this one'}</button>
-          </div>
-          ${SWAP_FOR===x.k?`<div class="card tight" style="margin-top:8px">
-            <label class="f">Swap in</label>
-            <select id="swapPick">${Object.keys(GUIDE).filter(n=>LIB_TYPE[n]==='Exercise').sort()
-              .map(n=>`<option${n===V.n?' selected':''}>${n}</option>`).join('')}</select>
-            <div class="btnrow mt">
-              <button class="btn primary" onclick="applySwap('${x.k}')">Use this</button>
-              <button class="btn" onclick="pickSwap(null)">Cancel</button>
+          <button class="btn ${exDone?'':'primary'} mt" onclick="toggleExDone('${x.k}')">${exDone?'Done ✓ — tap to undo':'Mark this exercise done'}</button>
+          <details class="exChange"${SWAP_FOR===x.k?' open':''}><summary>Change or skip this exercise</summary>
+            <div class="exTools mt">
+              <button onclick="pickSwap('${x.k}')">${V.manual?'Change what you swapped in':'Swap for something else'}</button>
+              ${V.manual?`<button onclick="clearSwap('${x.k}')">Back to ${x.n}</button>`:''}
+              <button onclick="toggleSkip('${x.k}')">${skipped?'Skipped — undo':'Skip this one'}</button>
+              ${nAlts&&vi<nAlts?`<button onclick="bumpVariant('${ds}','${x.k}',${nAlts})">Machine taken — next alternative (${nAlts-vi} left)</button>`:''}
+              ${vi?`<button onclick="resetVariant('${ds}','${x.k}')">Back to ${x.n}</button>`:''}
             </div>
-            <div class="note">This replaces the exercise in its slot. It stays part of the session, so it does not become a bonus extra and does not earn a ★.</div>
-          </div>`:''}
-          ${nAlts?`<div class="swap">
-            ${vi<nAlts
-              ? `<button onclick="bumpVariant('${ds}','${x.k}',${nAlts})">Taken — swap it</button>
-                 <span class="step">${nAlts-vi} left</span>`
-              : `<span class="step" style="color:var(--warning);white-space:normal">All ${nAlts} alternatives gone. Swap in something else above, or skip it.</span>`}
-            ${vi?`<button onclick="resetVariant('${ds}','${x.k}')">Back to ${x.n}</button>`:''}
-          </div>`:''}
+            ${nAlts&&vi>=nAlts?`<div class="muted mt" style="color:var(--warning)">All ${nAlts} built-in alternatives used. Swap in something else, or skip it.</div>`:''}
+            ${SWAP_FOR===x.k?`<div class="card tight" style="margin-top:10px">
+              <label class="f">Swap in</label>
+              <select id="swapPick">${Object.keys(GUIDE).filter(n=>LIB_TYPE[n]==='Exercise').sort()
+                .map(n=>`<option${n===V.n?' selected':''}>${n}</option>`).join('')}</select>
+              <div class="btnrow mt">
+                <button class="btn primary" onclick="applySwap('${x.k}')">Use this</button>
+                <button class="btn" onclick="pickSwap(null)">Cancel</button>
+              </div>
+              <div class="note">Replaces the exercise in its slot. It stays part of the session, so it never becomes a bonus extra and never earns a ★. If you have already logged sets you will be asked whether to keep them — say yes when you are correcting the record after the fact.</div>
+            </div>`:''}
+          </details>
         </div>`;
       });
 
@@ -1695,7 +2015,9 @@ window.setLog=(k,i,f,v)=>{
 window.toggleDone=()=>{
   const ds=curDate();
   const e=DB.log[ds]||(DB.log[ds]={type:SCHEDULE[parse(ds).getDay()],sets:{}});
-  e.done=!e.done; save(); render();
+  e.done=!e.done;
+  if(e.done&&e.replaced) delete e.replaced;   // you did it after all
+  save(); render();
 };
 window.mark=t=>{
   const ds=curDate();
@@ -1772,7 +2094,7 @@ function vWeek(){
     <div class="row"><div><h2>${weekTitle(mon)}</h2>
     <div class="sec">${s.state==='setup'?'Programme not built yet'
       : future?'Planned — nothing logged yet'
-      : `${s.hit} of ${s.of} core sessions`}</div></div>${pill(s.state)}</div>
+      : `${fmtHit(s.hit)} of ${s.of} core sessions`}</div></div>${pill(s.state)}</div>
     <div class="week mt">${s.days.map(ds=>{
       const dd=parse(ds), ty=isAway(ds)?'rest':SCHEDULE[dd.getDay()], e=DB.log[ds]||{};
       const bn=bonusOn(ds).length;
@@ -1836,12 +2158,31 @@ function lastSession(k,before,variant){
   return null;
 }
 // What to load next, and why.
+// The heaviest you have ever handled on this movement. Used as a sanity check:
+// a single fat-fingered entry should not drag your whole progression down with it.
+function bestEverFor(k,variant){
+  let best=null;
+  Object.keys(DB.log||{}).forEach(d=>{
+    const e=DB.log[d]; if(!e||!e.sets||!e.sets[k]) return;
+    if(((e.variant&&e.variant[k])||0)!==(variant||0)) return;
+    e.sets[k].forEach(v=>{ const w=parseFloat(v&&v.w);
+      if(!isNaN(w)&&w>0&&(best==null||w>best)) best=w; });
+  });
+  return best;
+}
 function suggestWeight(k,target,variant,name){
   const L=lastSession(k,todayISO(),variant);
   if(!L) return null;
   const done=L.sets.filter(v=>v&&v.w);
   if(!done.length) return null;
   const top=parseFloat(done[0].w);
+  // A last entry far below everything else you have lifted is almost always a
+  // typo — 2kg where you meant 20kg. Do not quietly rebuild from it.
+  const best=bestEverFor(k,variant);
+  if(best!=null && top>0 && top<best*0.5 && best-top>=5){
+    return {w:best, hold:true, warn:true,
+      why:`your last entry was ${top}kg, which does not sit next to the ${best}kg you have done. That looks like a slip of the finger — go back and correct it if so, otherwise log what you actually lift.`};
+  }
   const reps=done.map(v=>parseInt(v.r)||0);
   // "3 × 5" or "3 × 8–12" — the rep target is the number AFTER the ×, not the set count
   const topTarget=parseInt((String(target).match(/×\s*(\d+)/)||[])[1])||5;
@@ -2005,13 +2346,14 @@ function weekRows(mon){
     const stars=(DB.bonus[ds]||[]).length;
     const bits=[];
     if(done) bits.push(e.type==='bball'?'Played':(nSets?`${nSets} exercise${nSets===1?'':'s'}`:'Done'));
+    else if(e.replaced) bits.push(`Swapped${e.replaced.with?' — '+e.replaced.with:''}`);
     extras.forEach(w=>bits.push(`${w.focusLabel||'Random'} workout`));
     recList(ds).forEach(w=>bits.push(w.focusLabel));
     acts.forEach(a=>bits.push(a.sub));
     const label = e.type==='bball'||planned==='bball' ? 'Basketball'
                 : prog ? prog.label
                 : planned==='open' ? 'Open' : '—';
-    const missed = !done && !extras.length && !acts.length
+    const missed = !done && !extras.length && !acts.length && !(e.replaced&&e.replaced.credit)
                  && ['bball','gymA','gymB'].includes(planned)
                  && ds<todayISO() && !isAway(ds);
     // bonus extras are shown on the day but never counted as sessions
@@ -2047,7 +2389,7 @@ function vProgress(){
 
   h+=`<div class="card"><div class="row"><h3>The week</h3>${pill(ws.state)}</div>
     <div class="statRow mt">
-      <div><div class="sv">${ws.state==='prestart'||ws.state==='planned'?'—':`${ws.hit}/${ws.of}`}</div><div class="sl">core sessions</div></div>
+      <div><div class="sv">${ws.state==='prestart'||ws.state==='planned'?'—':`${fmtHit(ws.hit)}/${ws.of}`}</div><div class="sl">core sessions</div></div>
       <div><div class="sv" style="color:${dW==null?'var(--muted)':dW<0?'var(--good)':dW>0?'var(--warning)':'var(--muted)'}">${dW==null?'—':`${dW>0?'+':''}${dW.toFixed(1)}`}</div><div class="sl">lb change</div></div>
       <div><div class="sv" style="color:${stars?'var(--good)':'var(--muted)'}">${stars}</div><div class="sl">star${stars===1?'':'s'}</div></div>
       <div><div class="sv">${sessions}</div><div class="sl">things done</div></div>
@@ -2100,7 +2442,11 @@ function noteCard(mon){
       <div class="muted">Nothing written for this week yet</div></div>
       <button class="btn ghost" style="width:auto;padding:7px 13px" onclick="editNote('${mon}')">Add</button>
     </div>
-    <div class="note">Export your data from Sync, send it over, and paste the write-up back in here.</div></div>`;
+    <div class="btnrow mt">
+      <button class="btn ghost" onclick="downloadPack()">Review pack for Claude</button>
+      <button class="btn ghost" onclick="copyPack()">Copy summary</button>
+    </div>
+    <div class="note">The review pack carries its own instructions, so you can hand the file over with nothing else attached. Paste the write-up back in here.</div></div>`;
   return `<div class="card"><div class="row"><h3>Coach note</h3>
       <button class="btn ghost" style="width:auto;padding:6px 12px;font-size:12.5px" onclick="editNote('${mon}')">Edit</button></div>
     <div class="noteBody mt">${n.text.replace(/</g,'&lt;').split(/\n{2,}/).map(p=>`<p>${p.replace(/\n/g,'<br>')}</p>`).join('')}</div>
@@ -2125,9 +2471,9 @@ function weekVerdict(ws,dW,stars){
   if(ws.state==='away')      return 'Flagged as away. Excused in full — this week does not count against you.';
   const parts=[];
   if(ws.complete) parts.push(ws.state==='ontrack'
-    ? `${ws.hit} of ${ws.of} core sessions — that is a good week.`
-    : `${ws.hit} of ${ws.of} core sessions. Two misses is the line, so this one counts against you.`);
-  else parts.push(`${ws.hit} of ${ws.of} so far.`);
+    ? `${fmtHit(ws.hit)} of ${ws.of} core sessions — that is a good week.`
+    : `${fmtHit(ws.hit)} of ${ws.of} core sessions. Two misses is the line, so this one counts against you.`);
+  else parts.push(`${fmtHit(ws.hit)} of ${ws.of} so far.`);
   if(dW!=null&&Math.abs(dW)>=0.1) parts.push(`Weight ${dW<0?'down':'up'} ${Math.abs(dW).toFixed(1)}lb on the 7-day average.`);
   if(stars) parts.push(`${stars} extra${stars===1?'':'s'} on top.`);
   parts.push('One week is noise — the trend below is what matters.');
@@ -2287,8 +2633,8 @@ function consistencyChart(){
       const c=s.state==='away'?'var(--muted)':s.state==='offtrack'?'var(--critical)':s.state==='slipping'?'var(--warning)':s.state==='ontrack'?'var(--good)':'var(--axis)';
       const hgt=Math.max(6,(s.hit/Math.max(1,s.of))*78);
       return `<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px">
-        <div style="width:100%;height:${hgt}px;background:${c};border-radius:4px 4px 0 0" title="${weekTitle(parse(w))}: ${s.hit}/${s.of}"></div>
-        <div style="font-size:9.5px;color:var(--muted);font-variant-numeric:tabular-nums">${s.state==='away'?'✈︎':s.hit}</div>
+        <div style="width:100%;height:${hgt}px;background:${c};border-radius:4px 4px 0 0" title="${weekTitle(parse(w))}: ${fmtHit(s.hit)}/${s.of}"></div>
+        <div style="font-size:9.5px;color:var(--muted);font-variant-numeric:tabular-nums">${s.state==='away'?'✈︎':fmtHit(s.hit)}</div>
       </div>`;}).join('')}
   </div>
   <div class="legendless">Number under each bar = core sessions completed that week (out of 4). ✈︎ = flagged away.</div>`;
@@ -2434,6 +2780,7 @@ function census(d){
       ['Exercises with sets', sets],
       ['Random / custom workouts', Object.values(d.adhoc||{}).flat().length],
       ['Recovery sessions',   Object.values(d.recovery||{}).flat().length],
+      ['Sessions called off',  Object.values(d.log||{}).filter(e=>e&&e.replaced).length],
       ['Activities logged',   (d.activities||[]).length],
       ['Morning weights',     Object.keys(d.weights||{}).length],
       ['Body Hub scans',      Object.keys(d.bodyfat||{}).length],
@@ -2441,7 +2788,8 @@ function census(d){
       ['Bonus extras',        Object.values(d.bonus||{}).flat().length],
       ['Club visits',         (d.visits||[]).length],
       ['Niggles',             (d.niggles||[]).length],
-      ['Coach notes',         Object.keys(d.notes||{}).length]
+      ['Coach notes',         Object.keys(d.notes||{}).length],
+      ['Challenges',          (d.challenges||[]).length]
     ],
     first:dates[0]||null, last:dates[dates.length-1]||null,
     bytes:JSON.stringify(d).length
@@ -2468,6 +2816,144 @@ window.importData=el=>{
   };
   r.readAsText(f);
 };
+/* ------------------------------------------------------------
+   REVIEW PACK
+   A single file to hand to Claude. It carries its own
+   instructions at the top so it can be dropped in with no
+   covering message, then a readable summary, then the raw data
+   underneath for anything the summary flattened.
+   ------------------------------------------------------------ */
+function reviewPack(){
+  const t=todayISO(), P=activeProfile();
+  const L=[];
+  const w=n=>L.push(n);
+
+  w(`# Coaching review pack — ${P.name}, ${fmtD(t)}`);
+  w('');
+  w('## Read this first');
+  w('');
+  w('You are my strength, conditioning and fitness coach. This file is an export');
+  w('from my training app. Use it, plus the goals and programme docs in the');
+  w('Personal Health project, to review how I am actually going.');
+  w('');
+  w('What I want back:');
+  w('');
+  w('1. A short read on the last few weeks — consistency, strength, body');
+  w('   composition, how sessions have felt. Trends, not single readings.');
+  w('2. Anything in the data that should change the programme or the calories.');
+  w('   Say so plainly, and say if the answer is "nothing, keep going".');
+  w('3. A **coach note** of about 150 words, written to me, that I can paste');
+  w('   straight into Progress → Coach note for the week in question.');
+  w('');
+  w('Challenge my assumptions rather than agreeing with me. If the honest answer');
+  w('is that a number is too noisy to act on yet, say that instead of finding a');
+  w('pattern in it.');
+  w('');
+  w('---');
+  w('');
+
+  // ---- where things stand
+  const now=avg7(t), start=DB.settings.startWeight, goal=DB.settings.goalWeight;
+  const bfd=Object.keys(DB.bodyfat||{}).sort();
+  w('## Where things stand');
+  w('');
+  w(`- Programme week: ${weekTitle(new Date())}`);
+  w(`- Body weight: ${now!=null?now.toFixed(1)+'lb (7-day average)':'not enough readings'} · start ${start}lb · goal ${goal}lb`);
+  if(bfd.length) w(`- Body fat: ${DB.bodyfat[bfd[bfd.length-1]]}% on ${fmtD(bfd[bfd.length-1])}${bfd.length>1?` · first scan ${DB.bodyfat[bfd[0]]}% on ${fmtD(bfd[0])}`:''}`);
+  const openN=(DB.niggles||[]).filter(n=>!n.resolved);
+  w(`- Open niggles: ${openN.length?openN.map(n=>`${n.area} (level ${n.level})`).join(', '):'none'}`);
+  (DB.challenges||[]).forEach(c=>{ const st=chState(c);
+    w(`- Challenge "${c.reward}": ${st.state}, ${st.done.length}/${st.days.length} days`); });
+  w('');
+
+  // ---- week by week
+  w('## Week by week');
+  w('');
+  w('| Week | Dates | Core sessions | State | 7-day weight | Stars |');
+  w('|---|---|---|---|---|---|');
+  allWeeks().slice(-12).forEach(mon=>{
+    const st=weekStatus(mon), end=iso(addD(parse(mon),6));
+    const wt=avg7(end>t?t:end);
+    w(`| ${weekTitle(parse(mon))} | ${fmtD(mon).replace(/^\w+, /,'')} – ${fmtD(end).replace(/^\w+, /,'')} | ${fmtHit(st.hit)}/${st.of} | ${st.state} | ${wt!=null?wt.toFixed(1)+'lb':'—'} | ${bonusCount(mon,end)} |`);
+  });
+  w('');
+
+  // ---- strength
+  w('## Strength — first and latest logged set');
+  w('');
+  w('| Lift | First | Latest | Change |');
+  w('|---|---|---|---|');
+  const keys={};
+  Object.keys(DB.log||{}).forEach(d=>Object.keys((DB.log[d]||{}).sets||{}).forEach(k=>{
+    const sum=setSummary(DB.log[d].sets[k]); if(!sum||sum.top==null) return;
+    const nm=(DB.log[d].exName&&DB.log[d].exName[k])||keyName(k);
+    (keys[nm]=keys[nm]||[]).push({d,top:sum.top,reps:sum.reps});
+  }));
+  Object.keys(keys).sort().forEach(nm=>{
+    const a=keys[nm].sort((x,y)=>x.d<y.d?-1:1), f=a[0], l=a[a.length-1];
+    w(`| ${nm} | ${f.top}kg × ${f.reps||'?'} (${fmtD(f.d).replace(/^\w+, /,'')}) | ${l.top}kg × ${l.reps||'?'} (${fmtD(l.d).replace(/^\w+, /,'')}) | ${(l.top-f.top>0?'+':'')}${(l.top-f.top).toFixed(1)}kg |`);
+  });
+  w('');
+
+  // ---- how it has felt
+  const feels=Object.keys(DB.log).filter(d=>DB.log[d].rpe||DB.log[d].mood).sort().slice(-12);
+  if(feels.length){
+    w('## How sessions have felt (most recent 12)');
+    w('');
+    w('| Date | Session | Difficulty | Felt |');
+    w('|---|---|---|---|');
+    feels.forEach(d=>{ const e=DB.log[d], p=PROGRAMME[e.type];
+      w(`| ${fmtD(d).replace(/^\w+, /,'')} | ${e.type==='bball'?'Basketball':(p?p.label:e.type)} | ${e.rpe?DIFF_LABEL[e.rpe-1]:'—'} | ${e.mood?MOOD_LABEL[e.mood-1]:'—'} |`);
+    });
+    w('');
+  }
+
+  // ---- everything logged, recent first
+  const rows=historyRows().slice(0,120);
+  w('## Everything logged (most recent 120 entries)');
+  w('');
+  w('| Date | Type | What | Load | Reps/time | Sets/kcal | Note |');
+  w('|---|---|---|---|---|---|---|');
+  rows.forEach(r=>w(`| ${r.d} | ${r.cat} | ${r.name} | ${r.v1} | ${r.v2} | ${r.v3} | ${r.note||''} |`));
+  w('');
+
+  // ---- nutrition adherence
+  const fd=Object.keys(DB.fuel||{}).sort().slice(-28);
+  if(fd.length){
+    w('## Nutrition adherence (last 28 logged days)');
+    w('');
+    fd.forEach(d=>{ const f=DB.fuel[d];
+      w(`- ${d}: calories ${f.kcal?'✓':'✗'}, protein ${f.protein?'✓':'✗'}`); });
+    w('');
+  }
+
+  w('---');
+  w('');
+  w('## Raw data');
+  w('');
+  w('Everything above is derived from this. Use it if you need something the');
+  w('summary flattened.');
+  w('');
+  w('```json');
+  w(JSON.stringify(DB,null,1));
+  w('```');
+  return L.join('\n');
+}
+window.downloadPack=()=>{
+  const md=reviewPack();
+  const b=new Blob([md],{type:'text/markdown'});
+  const u=URL.createObjectURL(b),a=document.createElement('a');
+  a.href=u;a.download=`coach-review-${todayISO()}.md`;a.click();
+  setTimeout(()=>URL.revokeObjectURL(u),4000);
+};
+window.copyPack=async()=>{
+  // The summary without the raw JSON — small enough to paste straight into a
+  // chat, which on iOS is far more reliable than handling a downloaded file.
+  const md=reviewPack().split('\n## Raw data')[0].trim();
+  try{ await navigator.clipboard.writeText(md); alert('Copied. Paste it into Claude.'); }
+  catch(e){ alert('Could not copy automatically — use Download instead.'); }
+};
+
 window.exportData=()=>{
   const b=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
   const u=URL.createObjectURL(b),a=document.createElement('a');
@@ -2549,7 +3035,7 @@ function vPlan(){
    Entirely optional. With no config the app runs exactly as
    before, storing everything locally on the device.
    ============================================================ */
-const BUILD='2026-08-24 · v39';   // shown on the Sync tab — check this to confirm an update landed
+const BUILD='2026-08-24 · v43';   // shown on the Sync tab — check this to confirm an update landed
 const FBV='https://www.gstatic.com/firebasejs/10.12.5';
 
 /* Firebase config lives in its own file — config.js — which this file never
@@ -2584,10 +3070,11 @@ function mergeEntry(n,o){
   out.warm   ={...(o.warm||{}),   ...(n.warm||{})};
   out.stretch={...(o.stretch||{}),...(n.stretch||{})};
   out.skipped={...(o.skipped||{}),...(n.skipped||{})};
+  out.exDone ={...(o.exDone||{}), ...(n.exDone||{})};
   out.swapEx ={...(o.swapEx||{}), ...(n.swapEx||{})};
   const ex=[...(n.extraEx||[]),...(o.extraEx||[])];
   out.extraEx=ex.filter((x,i)=>ex.findIndex(y=>y.k===x.k)===i);
-  ['warm','stretch','skipped','swapEx','exName','variant'].forEach(k=>{
+  ['warm','stretch','skipped','exDone','swapEx','exName','variant'].forEach(k=>{
     if(out[k]&&!Object.keys(out[k]).length) delete out[k];
   });
   if(!out.extraEx.length) delete out.extraEx;
@@ -2747,6 +3234,7 @@ const MORE_ITEMS=[
   {k:'recovery',   t:'Recovery session',  d:'Mobility, pool or spa — knees, wrists, back, ankles, posture'},
   {k:'log',        t:'Log an activity',  d:'Runs, swims, classes, sauna — anything extra'},
   {k:'reward',     t:'Reward ladder',    d:'Earn something real for staying consistent'},
+  {k:'challenge',  t:'Challenges',       d:'A fixed run of days where every one has to count'},
   {k:'history',    t:'History',           d:'Every session, set, run and swim you have logged — and your best lifts'},
   {k:'review',     t:'Progress review',  d:'What your numbers say to change'},
   {k:'fuel',       t:'Nutrition',        d:'Daily calorie and protein adherence'},
@@ -3032,6 +3520,19 @@ function historyRows(){
     (prog&&prog.ex||[]).forEach(x=>{ const vi=(e.variant&&e.variant[x.k])||0;
       named[x.k]=exVariant(x,vi,(e.swapEx||{})[x.k]).n; });
     (e.extraEx||[]).forEach(x=>{ named[x.k]=x.n+' (extra)'; });
+    if(e.replaced){
+      const o=(REPLACE[replaceKind(e.type)]||[]).find(x=>x.k===e.replaced.tier);
+      out.push({d,cat:e.type==='bball'?'Basketball':'Gym',
+        name:e.replaced.with||`${prog?prog.label:'Session'} called off`,
+        v1:'—',v2:'—',
+        v3:e.replaced.credit>=1?'full credit':e.replaced.credit?'half credit':'missed',
+        note:`replaced ${prog?prog.label:'the planned session'}${o?' · '+o.t.toLowerCase():''}`});
+    }
+    Object.keys(e.exDone||{}).forEach(k=>{
+      if((e.sets||{})[k]&&setSummary(e.sets[k])) return;   // the sets tell the story instead
+      out.push({d,cat:'Gym',name:(e.exName&&e.exName[k])||named[k]||keyName(k),
+        v1:'—',v2:'—',v3:'done',note:'marked done, no sets logged',session:prog?prog.label:''});
+    });
     Object.keys(e.skipped||{}).forEach(k=>{
       if((e.sets||{})[k]&&setSummary(e.sets[k])) return;      // logged after all
       out.push({d,cat:'Gym',name:(e.exName&&e.exName[k])||named[k]||keyName(k),
@@ -3348,6 +3849,12 @@ const MOBILITY_GUIDE={
  steps:['Squeeze the knees together under control.','Hold one second.','Let them open slowly to a comfortable stretch, not to the end of the machine.'],
  tips:['Court sports are hard on adductors — all that lateral push-off. Strong ones are genuinely protective.','Do not force the open position. A stretch you cannot control is where strains happen.'],
  watch:'hip adduction machine proper form'},
+
+'Glute Drive':{pose:'bridge',kit:'Life Fitness Glute Drive',brief:'Loaded hip thrust, back supported',
+ setup:['Sit into the machine with the pad across your hips and your upper back against the rest.','Feet flat, shins vertical at the top of the movement — shuffle them until that is true.'],
+ steps:['Brace, then drive your hips up by squeezing your glutes.','Finish with hips fully extended and ribs down — do not arch your lower back to get higher.','Hold the top for one second.','Lower under control, stopping just short of resting the weight.'],
+ tips:['Arching the back is the universal fault. The movement finishes when your hips are straight, not when your back bends.','It loads the glutes at the top of the range, which a squat does not — that is the whole point of having both.','Chin tucked, eyes forward. Looking up drags your back into extension.'],
+ watch:'glute drive machine hip thrust proper form'},
 
 'Bulgarian Split Squat':{pose:'split',kit:'A bench + dumbbells',brief:'Single-leg strength and knee control',
  setup:['Stand about a stride in front of a bench, facing away from it.','Rest the top of your back foot on the bench behind you.','Nothing in your hands to begin with. Dumbbells at your sides once you own the movement.'],
@@ -3739,6 +4246,8 @@ const EQUIP=[
    p:'A second pulldown angle. Handy when the lat pulldown is taken, and a slightly different pull is no bad thing.', m:['second pulldown station']},
   {id:'selohp', n:'Shoulder press', cat:'Pin-loaded machines', targets:'Shoulders, triceps',
    p:'Overhead pressing with the back supported. Kinder on the lower back than standing, and easier to push hard on.', m:['life fitness shoulder press']},
+  {id:'glutedrive', n:'Glute Drive', cat:'Pin-loaded machines', targets:'Glutes',
+   p:'A hip thrust with the back supported. Loads the glutes at the top of the range, which no squat or hinge does — worth having for exactly that reason.', m:['glute drive']},
   {id:'legext', n:'Leg extension', cat:'Pin-loaded machines', targets:'Quads',
    p:'Direct quad work. Light and high-rep, this is one of the better things for a knee that is complaining — despite its reputation.', m:['leg extension']},
   {id:'legpress', n:'Seated leg press', cat:'Pin-loaded machines', targets:'Quads, glutes',
@@ -4372,7 +4881,7 @@ window.setRecovery=(ds,m,ai)=>{
    ============================================================ */
 const ACTIVITIES={
   Cardio:{
-    subs:['Run','Treadmill run','Swim','Row','SkiERG','Cross trainer','Walk'],
+    subs:['Run','Treadmill run','Stairs','Swim','Row','SkiERG','Cross trainer','Walk','Hike'],
     fields:[['dist','Distance','km'],['time','Time','min'],['cal','Calories','kcal'],['pace','Avg pace','min/km']]
   },
   Class:{
@@ -4380,7 +4889,7 @@ const ACTIVITIES={
     fields:[['time','Length','min'],['cal','Calories','kcal']]
   },
   Sport:{
-    subs:['Basketball (extra)','Tennis','Badminton','Pickleball','Padel'],
+    subs:['Basketball (extra)','Tennis','Badminton','Squash','Pickleball','Padel','5-a-side'],
     fields:[['time','Time','min']]
   },
   Recovery:{
@@ -4389,8 +4898,8 @@ const ACTIVITIES={
   },
   Other:{ subs:['Something else'], fields:[['time','Time','min'],['cal','Calories','kcal']] }
 };
-const CLUB_ACT=['Treadmill run','Swim','Row','SkiERG','Cross trainer','BLAZE','Yoga','Pilates','Other class',
-                'Tennis','Badminton','Pickleball','Padel','Sauna','Hot tub','Cold plunge','Massage gun',
+const CLUB_ACT=['Treadmill run','Stairs','Swim','Row','SkiERG','Cross trainer','BLAZE','Yoga','Pilates','Other class',
+                'Tennis','Badminton','Squash','Pickleball','Padel','Sauna','Hot tub','Cold plunge','Massage gun',
                 'Stretch session','Swim (easy)'];
 
 function vLog(){
@@ -4414,22 +4923,25 @@ function vLog(){
 
   const acts=(DB.activities||[]).slice().reverse();
   if(acts.length){
-    h+=`<div class="card"><h3>Recent</h3>${acts.slice(0,12).map((a)=>{
+    h+=`<div class="card"><h3>Recently logged</h3>
+      <div class="muted" style="margin-bottom:8px">Everything here is saved. The ✕ is only for deleting something you logged by mistake.</div>
+      ${acts.slice(0,12).map((a)=>{
       const i=DB.activities.indexOf(a);
       const bits=Object.entries(a.vals||{}).filter(([,v])=>v!=='' && v!=null)
         .map(([k,v])=>{const f=(ACTIVITIES[a.cat]?.fields||[]).find(x=>x[0]===k);return f?`${v} ${f[2]}`:v;});
       return `<div class="ledger"><div>
         <div style="font-weight:600">${a.sub}</div>
         <div class="muted">${fmtD(a.date).replace(/^\w+, /,'')}${bits.length?' · '+bits.join(' · '):''}${a.note?` — ${a.note}`:''}</div>
-      </div><button class="btn danger" style="width:auto;padding:5px 11px;font-size:13px" onclick="rmActivity(${i})">Remove</button></div>`;
+      </div><button class="xsmall" title="Delete this entry" aria-label="Delete ${a.sub}" onclick="rmActivity(${i})">✕</button></div>`;
     }).join('')}</div>`;
 
-    // simple totals for the current month
-    const m=todayISO().slice(0,7);
-    const mine=(DB.activities||[]).filter(a=>a.date.slice(0,7)===m);
+    // A rolling window rather than a calendar month — on the 1st, "this month"
+    // read zero while a session from two days ago sat directly above it.
+    const from=iso(addD(new Date(),-30));
+    const mine=(DB.activities||[]).filter(a=>a.date>=from);
     const km=mine.reduce((t,a)=>t+(parseFloat(a.vals?.dist)||0),0);
     const mins=mine.reduce((t,a)=>t+(parseFloat(a.vals?.time)||0),0);
-    h+=`<div class="card"><h3>This month</h3>
+    h+=`<div class="card"><h3>Last 30 days</h3>
       <table class="mt"><tbody>
         <tr><td>Activities logged</td><td class="num">${mine.length}</td></tr>
         <tr><td>Distance</td><td class="num">${km?km.toFixed(1)+' km':'—'}</td></tr>
@@ -4584,6 +5096,8 @@ function vSync(){
       <button class="btn ghost" onclick="exportData()">Export</button>
       <button class="btn ghost" onclick="document.getElementById('imp').click()">Import</button>
     </div>
+    <button class="btn ghost mt" onclick="downloadPack()">Review pack for Claude</button>
+    <div class="muted" style="margin-top:6px">A readable summary plus the raw data, with the instructions built in — hand the file straight over.</div>
     <input type="file" id="imp" accept="application/json" class="hide" onchange="importData(this)">
     <div class="note">Worth doing occasionally even with sync on.</div>
   </div>`;
