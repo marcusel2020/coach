@@ -365,6 +365,22 @@ td.num{overflow-wrap:anywhere}
 .chBox.fut{opacity:.45}
 .chNeed{display:flex;gap:10px;align-items:flex-start;padding:9px 0;font-size:13.5px;line-height:1.45}
 .chNeed input{margin-top:2px;width:18px;height:18px;flex:0 0 18px}
+
+.chSub{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  margin-top:9px;font-size:13.5px}
+.chSub span{color:var(--muted)}
+.chSub b{font-variant-numeric:tabular-nums}
+.chSub b.good{color:var(--good)}
+.chSub b.bad{color:var(--critical)}
+
+.chBox.exc{border-style:dashed;border-color:var(--warning);color:var(--warning)}
+
+.lgStrip{display:flex;gap:3px;margin-top:12px}
+.lgBox{flex:1;height:26px;border-radius:5px;border:1px solid var(--border);background:var(--surface-2)}
+.lgBox.full{background:var(--good);border-color:var(--good)}
+.lgBox.self{background:transparent;border-color:var(--good)}
+.lgBox.partial{background:transparent;border-color:var(--warning);border-style:dashed}
+.lgBox.none{background:transparent}
 </style>
 </head>
 <body>
@@ -538,7 +554,13 @@ const SUGGEST_M={1:[],2:[],3:['swim','sauna','massage'],4:[],5:['sauna','massage
 // The four commitments a week is scored on
 const CORE_M=[{dow:1,type:'bball'},{dow:2,type:'gymB'},{dow:4,type:'bball'},{dow:5,type:'gymA'}];
 
-const NUTRITION_M={kcal:2200,protein:175,fat:70,carbs:215};
+/* Protein cut from 175g to 150g on 14 Sept. 175 was 2.2 g per kg of CURRENT
+   bodyweight, which overshoots at 27% body fat — you do not need to feed the
+   fat. Scaled to goal weight (69kg × 2.0) or lean mass (~58kg × 2.4) the
+   answer is about 140g either way. 150 keeps a margin and is a target he can
+   actually reach; the evidence for anything above ~1.6 g/kg in a deficit is
+   thin, and a target missed every day is worth less than one that is hit. */
+const NUTRITION_M={kcal:2200,protein:150,fat:70,carbs:215};
 
 /* ============================================================
    PROFILES
@@ -554,21 +576,48 @@ const PROFILES={
     programme:PROGRAMME_M, nutrition:NUTRITION_M,
     settings:{startWeight:175,goalWeight:152,unitMigrated:true}
   },
-  'ro.racheloconnor@gmail.com':{
-    name:'Rachel', start:'2026-08-24', setup:true,
-    schedule:{0:'tba',1:'tba',2:'tba',3:'tba',4:'tba',5:'tba',6:'tba'},
-    suggest:{0:['swim','sauna'],1:[],2:[],3:[],4:[],5:[],6:['swim','sauna','racquet']},
-    core:[],                       // nothing scored until the programme exists
-    programme:PROGRAMME_M,         // only 'tba' and 'rest' are reachable via her schedule
-    nutrition:null,                // no targets set yet
-    settings:{startWeight:null,goalWeight:null,unitMigrated:true}
-  }
+  /* ---- Second profile: the shell ----------------------------------------
+     Rachel's entry was removed on 13 Sept — she is unlikely to use it and an
+     empty programme is worse than no programme. The machinery stays: add an
+     email key here with a name and a schedule and that person gets their own
+     app, sharing nothing but the deployment. `setup:true` makes the app say
+     "programme to be arranged" and score nothing until a real plan exists.
+
+     'someone@example.com':{
+       name:'Name', start:'YYYY-MM-DD', setup:true,
+       schedule:{0:'tba',1:'tba',2:'tba',3:'tba',4:'tba',5:'tba',6:'tba'},
+       suggest:{0:[],1:[],2:[],3:[],4:[],5:[],6:[]},
+       core:[], programme:PROGRAMME_M, nutrition:null,
+       settings:{startWeight:null,goalWeight:null,unitMigrated:true}
+     }
+     ----------------------------------------------------------------------- */
 };
 const DEFAULT_PROFILE='marcusel2020@gmail.com';
+/* Baseline calories — what he burns on a day with NO training: BMR plus
+   ordinary daily movement. Mifflin-St Jeor for 25y, 5'10", 175lb gives a BMR
+   near 1785; his imported step counts average around 3,100 a day, which is
+   genuinely sedentary, so ~1.2× puts the baseline near 2150.
+   Training burn is added per day from the imported Exercise file rather than
+   baked in here, so a game day and a rest day are not treated alike.
+   It remains an estimate. The scale over three weeks is what corrects it. */
+const MAINT_DEFAULT=2150;
 
+// Anyone signed in whose email is not listed above gets an empty shell rather
+// than someone else's programme. Their data is already separate (Firestore is
+// keyed by uid); this keeps the plan separate too.
+const GUEST_PROFILE={
+  // A literal, not todayISO() — this object is built before the date helpers
+  // exist, and nothing is scored for a shell profile anyway.
+  name:'', start:'2026-01-01', setup:true,
+  schedule:{0:'tba',1:'tba',2:'tba',3:'tba',4:'tba',5:'tba',6:'tba'},
+  suggest:{0:[],1:[],2:[],3:[],4:[],5:[],6:[]},
+  core:[], programme:PROGRAMME_M, nutrition:null,
+  settings:{startWeight:null,goalWeight:null,unitMigrated:true}
+};
 function activeProfile(){
   const email=(window.Cloud&&Cloud.user&&Cloud.user.email||'').toLowerCase();
-  return PROFILES[email]||PROFILES[Store.get('coach.profile',DEFAULT_PROFILE)]||PROFILES[DEFAULT_PROFILE];
+  if(email) return PROFILES[email]||GUEST_PROFILE;
+  return PROFILES[Store.get('coach.profile',DEFAULT_PROFILE)]||PROFILES[DEFAULT_PROFILE];
 }
 // Accessors used everywhere below, so the active profile drives the whole app.
 const SCHEDULE  =new Proxy({},{get:(_,k)=>activeProfile().schedule[k]});
@@ -626,6 +675,12 @@ const SHAPE={
   weights:   {kind:'byDate'},                 // 'YYYY-MM-DD': lb
   bodyfat:   {kind:'byDate'},                 // 'YYYY-MM-DD': %
   fuel:      {kind:'byDate'},                 // 'YYYY-MM-DD': {kcal,protein}
+  sleep:     {kind:'byDate'},                 // 'YYYY-MM-DD': hours
+  kcal:      {kind:'byDate'},                 // 'YYYY-MM-DD': net deficit, + under / − over
+  excused:   {kind:'byDate'},                 // 'YYYY-MM-DD': {why, at} — a day written off
+  food:      {kind:'byDate'},                 // 'YYYY-MM-DD': {kcal,protein,carbs,fat} from MyFitnessPal
+  burn:      {kind:'byDate'},                 // 'YYYY-MM-DD': exercise kcal, from MyFitnessPal
+  steps:     {kind:'byDate'},                 // 'YYYY-MM-DD': step count
   bonus:     {kind:'byDate', of:'strings'},   // 'YYYY-MM-DD': ['sauna','swim']
   adhoc:     {kind:'byDate', of:'workouts'},  // 'YYYY-MM-DD': [workout, ...]
   away:      {kind:'list', id:v=>`${v.from}|${v.to}`},
@@ -703,24 +758,93 @@ if(!DB.settings.goalRevised2026){
   Store.set('coach.db',DB);
 }
 
-// Seeded from the challenge Marcus set himself: a week at the club every day
-// with food logged, for an Owala bottle. Moved to a Friday start and made
-// repeating on 2 Sept, so a broken run waits for the next Friday rather than
-// restarting on the spot. Editable and deletable like any other.
-if(DB.settings.owalaSeed!==2){
+/* The two challenges Marcus set himself, seeded so he does not have to type
+   them in. Revised 13 Sept: the bottle week moved to Mon 14 – Sun 20 and added
+   a sleep requirement; the LEGO month chains off it, so failing the bottle week
+   pushes the train back with it. Both editable and deletable like any other. */
+if(DB.settings.chSeed!==3){
   DB.challenges=DB.challenges||[];
-  const owala={id:'owala',reward:'Owala bottle',from:'2026-09-11',to:'2026-09-17',
-               needs:['club','fuel'],repeat:true,claimed:false};
-  const i=DB.challenges.findIndex(c=>c.id==='owala');
-  // never overwrite a claimed one, or dates he has since set himself
-  if(i<0) DB.challenges.push(owala);
-  else if(!DB.challenges[i].claimed && !DB.settings.owalaSeed)
-    DB.challenges[i]={...DB.challenges[i],...owala};
-  DB.settings.owalaSeed=2;
+  const seeds=[
+    {id:'owala', reward:'Owala water bottle',
+     from:'2026-09-14', to:'2026-09-20',
+     needs:['move','fuel','sleep8'], tol:{sleep8:5}, repeat:true, claimed:false},
+    {id:'lego',  reward:'LEGO Holiday Express Train',
+     from:'2026-09-21', to:'2026-10-20',          // 30 days; the real start comes from `after`
+     needs:['move'], avgDeficit:300, after:'owala', repeat:true, claimed:false}
+  ];
+  seeds.forEach(sd=>{
+    const i=DB.challenges.findIndex(c=>c.id===sd.id);
+    if(i<0) DB.challenges.push(sd);
+    else if(!DB.challenges[i].claimed) DB.challenges[i]={...DB.challenges[i],...sd};
+  });
+  DB.settings.chSeed=3;
   Store.set('coach.db',DB);
 }
 
-const isAway=s=>DB.away.some(a=>s>=a.from&&s<=a.to);
+/* Ill for three days and in France from Wednesday 9 Sept. Flagged as away so
+   the sessions that were never possible do not score against him. Extend the
+   end date on the Membership page if the trip runs longer. */
+if(!DB.settings.sept26Away){
+  DB.away=DB.away||[];
+  if(!DB.away.some(a=>a.from==='2026-09-09'))
+    DB.away.push({from:'2026-09-09',to:'2026-09-13',reason:'Illness, then France'});
+  DB.settings.sept26Away=true;
+  Store.set('coach.db',DB);
+}
+
+/* An excused day: something outside your control happened and this day is not
+   counted, anywhere. No limit on how many you use — the cost is that each one
+   needs a written reason, and every one of them is permanent and visible on
+   the challenge, in History and in the review pack. The honesty is the brake,
+   not a quota. */
+const excuseOn=ds=>(DB.excused||{})[ds]||null;
+const isExcused=ds=>!!excuseOn(ds);
+const excusedList=()=>Object.keys(DB.excused||{}).sort();
+const excusedIn=(from,to)=>excusedList().filter(d=>d>=from&&d<=to);
+let EXC_OPEN=false;
+function excuseCard(ds){
+  if(ds>todayISO()) return '';
+  const x=excuseOn(ds);
+  if(x) return `<div class="banner b-warn">${I.alert}<div>
+    <b>Written off as outside your control.</b> “${x.why}”
+    <div class="muted" style="margin-top:4px">Nothing is asked of this day — not the session, not a challenge. It stays on the record.</div>
+    <button class="btn ghost mt" onclick="clearExcuse('${ds}')">Undo — it was in my control</button>
+  </div></div>`;
+  if(!EXC_OPEN) return `<button class="btn ghost" style="margin-bottom:14px" onclick="openExcuse()">Something outside my control happened</button>`;
+  return `<div class="card"><h3>Outside your control</h3>
+    <div class="sec mt">Illness, injury, a delayed flight, a funeral. This writes the day off completely — the session, the streak, all of it.</div>
+    <div class="mt"><label class="f">What happened</label>
+      <input id="excWhy" placeholder="Ill — chest infection"></div>
+    <div class="btnrow mt">
+      <button class="btn primary" onclick="setExcuse('${ds}')">Write the day off</button>
+      <button class="btn" onclick="closeExcuse()">Cancel</button>
+    </div>
+    <div class="note">There is no limit on these and no penalty for using one. The only thing stopping you is that the reason is permanent — it shows on the challenge, in History, and in every review pack from here on. If you would not want to read it back in a month, that is your answer.</div>
+  </div>`;
+}
+window.openExcuse=()=>{ EXC_OPEN=true; render(); };
+window.closeExcuse=()=>{ EXC_OPEN=false; render(); };
+window.setExcuse=ds=>{
+  const el=document.getElementById('excWhy');
+  const why=(el&&el.value||'').trim();
+  if(!why){ alert('Write down what happened — that is the whole deal.'); return; }
+  DB.excused=DB.excused||{};
+  DB.excused[ds]={why,at:todayISO()};
+  EXC_OPEN=false; save(); render();
+};
+window.clearExcuse=ds=>{ if(!DB.excused) return; delete DB.excused[ds]; save(); render(); };
+/* Review 1, written 13 Sept against the MyFitnessPal export. Seeded as the
+   coach note for the week of 7 Sept so it lives where reviews live and can be
+   re-read from More > Reviews. Never overwrites a note written by hand. */
+if(!DB.settings.review1){
+  DB.notes=DB.notes||{};
+  if(!DB.notes['2026-09-07'])
+    DB.notes['2026-09-07']={text:"REVIEW 1 \u2014 weeks 1 to 3, 24 Aug to 13 Sept 2026\n\nThe headline: you are three weeks into a twelve-week block and have completed roughly one week of it as designed. That is not a failure \u2014 illness and a trip to France are outside your control and are flagged as such. But it does mean the programme has not really been tested yet, so nothing about the training itself should change on this evidence.\n\nWHAT THE DATA SHOWS\n\nWeek 1 (24\u201330 Aug) was a good week. Basketball Monday and Thursday, padel on Saturday, food logged all seven days. That is the week to repeat.\n\nWeek 2 started well and faded. Basketball Monday the 31st. Food logging stopped on the 2nd. Thursday the 3rd shows 2,307 steps, which is not what a two-hour basketball session looks like.\n\nWeek 3 collapsed. Monday the 7th shows 2,285 steps \u2014 again, probably no basketball. Then illness and France from Wednesday the 9th, which is properly excused.\n\nTHE NUMBERS\n\nFood: 11 days logged out of 21. Average 1,874 kcal against a 2,200 target, and 79g protein against what was then a 175g target. Protein was missed on all 11 days. Average deficit on logged days, about 566 kcal \u2014 but the 10 unlogged days are unknown, and unlogged days are rarely the light ones.\n\nSteps: 3,110 a day on average, range 585 to 8,010. This is the number that surprised me most and it is the most important one on this page.\n\nWHAT CHANGES\n\n1. A daily step floor of 8,000. Outside of training you are close to sedentary. Going from 3,100 to 8,000 adds roughly 200 kcal a day of expenditure \u2014 most of the 300 deficit the LEGO challenge asks for \u2014 without touching your food, and it works when you are ill, travelling, or busy. This is higher leverage for your body composition than any gym session in the plan.\n\n2. Protein target cut from 175g to 150g, because 175 was scaled to your current weight rather than your lean mass. Then fix the distribution rather than eating more: your snacks are 37% of your calories and 23% of your protein. Swap half of them for yoghurt, cottage cheese or whey and add a protein source to lunch. That is about +60g at the same calories.\n\n3. Nothing changes in the gym. Do not touch the programme until there are three consecutive weeks of it actually being run.\n\nWHAT I STILL CANNOT SEE\n\nNo weight data, no body fat scans, no gym sets, no session completions. Everything above is from MyFitnessPal alone. Send the review pack from Sync and the next review will be worth considerably more than this one.\n\nTHE UNCOMFORTABLE PART\n\nIn three weeks the app went through 48 versions. The training had one complete week. Building the tracker has been more engaging than using it. The app is now good enough \u2014 the next three weeks should be about running the plan, not improving the tool.",at:'2026-09-13',by:'coach'};
+  DB.settings.review1=true;
+  Store.set('coach.db',DB);
+}
+
+const isAway=s=>DB.away.some(a=>s>=a.from&&s<=a.to)||isExcused(s);
 function weekAway(mondayISO){
   const m=parse(mondayISO);
   for(let i=0;i<7;i++) if(!isAway(iso(addD(m,i)))) return false;
@@ -1465,9 +1589,10 @@ window.undoReplace=ds=>{ const e=DB.log[ds]; if(!e) return;
    the whole point.
    ============================================================ */
 const CH_NEEDS={
-  club:{t:'A visit to the club', d:'Gym, pool, spa, courts or a class — anything on site counts.'},
-  fuel:{t:'Food logged',         d:'Calories or protein ticked off on the Nutrition page.'},
-  move:{t:'Something active',    d:'Any session, activity or recovery work logged that day.'}
+  move:  {t:'Something active',     d:'Any session, activity, walk or recovery work logged that day.'},
+  club:  {t:'A visit to the club',  d:'Gym, pool, spa, courts or a class — anything on site counts.'},
+  fuel:  {t:'Food logged',          d:'A full day: three meals and a believable total, imported or ticked.'},
+  sleep8:{t:'8 hours of sleep',     d:'Logged on Today, under Measurements.'}
 };
 function clubVisitOn(ds){
   const e=DB.log[ds];
@@ -1478,7 +1603,40 @@ function clubVisitOn(ds){
   if((DB.activities||[]).some(a=>a.date===ds&&CLUB_ACT.includes(a.sub))) return true;
   return false;
 }
-const fuelOn=ds=>{ const f=(DB.fuel||{})[ds]||{}; return !!(f.kcal||f.protein); };
+/* A day only counts as logged if it looks like a real day's food: at least
+   three meals recorded and a plausible calorie total. Two meals and 568 kcal
+   is a day you started logging and abandoned, and counting it would make the
+   streak a lie. */
+const LOG_MIN_MEALS=3, LOG_MIN_KCAL=1200;
+function foodQuality(ds){
+  const f=(DB.food||{})[ds];
+  if(f){
+    if((f.meals||0)<LOG_MIN_MEALS || f.kcal<LOG_MIN_KCAL) return 'partial';
+    return 'full';
+  }
+  const t=(DB.fuel||{})[ds];
+  if(t&&(t.kcal!==undefined||t.protein!==undefined)) return 'self';   // ticked by hand, unverified
+  return 'none';
+}
+const loggedOk=ds=>['full','self'].includes(foodQuality(ds));
+function logStreak(){
+  let n=0, d=todayISO();
+  // today does not break the streak until the day is over
+  if(!loggedOk(d)) d=iso(addD(parse(d),-1));
+  while(loggedOk(d)&&n<400){ n++; d=iso(addD(parse(d),-1)); }
+  return n;
+}
+function logStrip(n){
+  const out=[];
+  for(let i=n-1;i>=0;i--){
+    const d=iso(addD(new Date(),-i)), q=foodQuality(d);
+    out.push(`<div class="lgBox ${q}" title="${fmtD(d)} — ${
+      {full:'logged',self:'ticked by hand',partial:'half a day',none:'nothing'}[q]}"></div>`);
+  }
+  return `<div class="lgStrip">${out.join('')}</div>`;
+}
+
+const fuelOn=ds=>loggedOk(ds);
 function moveOn(ds){
   const e=DB.log[ds];
   if(e&&e.done) return true;
@@ -1486,29 +1644,84 @@ function moveOn(ds){
   if(recList(ds).length) return true;
   return (DB.activities||[]).some(a=>a.date===ds);
 }
-const CH_TEST={club:clubVisitOn,fuel:fuelOn,move:moveOn};
+const sleep8On=ds=>Number((DB.sleep||{})[ds])>=8;
+const CH_TEST={club:clubVisitOn,fuel:fuelOn,move:moveOn,sleep8:sleep8On};
 
-const chDayOk=(ch,ds)=>(ch.needs||[]).every(k=>CH_TEST[k]?CH_TEST[k](ds):true);
+const needsOf=ch=>ch.needs||[];
+const tolOf=(ch,k)=>((ch.tol||{})[k]);                       // met on at least N days, not all
+// An excused day passes everything. Whatever the requirement was, it is not
+// being asked of a day you have written off with a reason.
+const needOk=(k,ds)=>isExcused(ds)||(CH_TEST[k]?CH_TEST[k](ds):true);
+const hardNeeds=ch=>needsOf(ch).filter(k=>tolOf(ch,k)==null);
+const softNeeds=ch=>needsOf(ch).filter(k=>tolOf(ch,k)!=null);
+// "Does this day count?" is only about the needs with no tolerance. A tolerant
+// need can be missed on a day without the run being over.
+const chDayOk=(ch,ds)=>isExcused(ds)||hardNeeds(ch).every(k=>needOk(k,ds));
 const chLen=ch=>Math.max(1,Math.round((parse(ch.to)-parse(ch.from))/86400000)+1);
 const daysBetween=(from,to)=>{ const out=[]; let d=parse(from);
-  while(iso(d)<=to && out.length<120){ out.push(iso(d)); d=addD(d,1); } return out; };
+  while(iso(d)<=to && out.length<400){ out.push(iso(d)); d=addD(d,1); } return out; };
 
+/* An average, judged over the whole window rather than day by day. A day with
+   nothing logged counts as zero — you cannot average what you did not record,
+   and treating blanks as neutral would make it trivially gameable. Excused
+   days drop out of the sum entirely: neither punished nor rewarded, because
+   you were not tracking and there is a written reason why. */
+function chAvg(ch,days){
+  if(ch.avgDeficit==null) return null;
+  const past=days.filter(d=>d<=todayISO()&&!isExcused(d));
+  const skipped=days.filter(d=>d<=todayISO()&&isExcused(d)).length;
+  if(!past.length) return {avg:0,n:0,skipped,target:ch.avgDeficit,ok:false};
+  const sum=past.reduce((t,d)=>t+(Number((DB.kcal||{})[d])||0),0);
+  const avg=sum/past.length;
+  return {avg,n:past.length,skipped,logged:past.filter(d=>(DB.kcal||{})[d]!=null).length,
+          target:ch.avgDeficit, ok:avg>=ch.avgDeficit};
+}
+/* Is a given window already beyond saving? Either a strict need has been
+   missed on a day that has passed, or a tolerant one can no longer reach its
+   minimum even if every remaining day goes perfectly. Kept free of chWindow so
+   chStart can call it without recursing. */
+function chWindowBroken(ch,from,to){
+  const today=todayISO(), days=daysBetween(from,to);
+  if(!days.length||days[0]>today) return false;
+  if(days.some(d=>d<today&&!chDayOk(ch,d))) return true;
+  const left=days.filter(d=>d>today).length;
+  return softNeeds(ch).some(k=>days.filter(d=>d<=today&&needOk(k,d)).length+left<tolOf(ch,k));
+}
+// Where a chained challenge actually starts: the day after whatever run its
+// prerequisite is on. If that run is already gone, this one waits for the run
+// after it — the train slides the moment the bottle week does, not a week later.
+function chStart(ch,depth){
+  if(!ch.after||(depth||0)>4) return ch.from;
+  const pre=(DB.challenges||[]).find(c=>c.id===ch.after);
+  if(!pre) return ch.from;
+  const w=chWindow(pre,(depth||0)+1);
+  const end = (pre.repeat&&chWindowBroken(pre,w.from,w.to))
+    ? iso(addD(parse(w.from),w.len*2-1))     // this run is dead; wait out the next one
+    : w.to;
+  return iso(addD(parse(end),1));
+}
 /* Which run are we actually on? A repeating challenge is a fixed-length window
    that rolls forward by its own length — break it and you wait for the next
    one to come round rather than starting again on the spot. That waiting is
    the point: it is what makes a Tuesday slip cost something. */
-function chWindow(ch){
+function chWindow(ch,depth){
   const len=chLen(ch), today=todayISO();
-  let from=ch.from, attempt=1;
-  if(!ch.repeat) return {from,to:ch.to,len,attempt,last:true};
-  for(let i=0;i<520;i++){
+  let from=chStart(ch,depth), attempt=1;
+  if(!ch.repeat) return {from,to:iso(addD(parse(from),len-1)),len,attempt,last:true};
+  for(let i=0;i<400;i++){
     const to=iso(addD(parse(from),len-1));
     if(today<=to) return {from,to,len,attempt};                  // upcoming, or the one we are in
-    if(daysBetween(from,to).every(d=>chDayOk(ch,d)))
-      return {from,to,len,attempt,passed:true};                  // a completed run — stop here so it can be claimed
-    from=iso(addD(parse(from),len)); attempt++;                   // that run failed; the next one starts straight after
+    if(chPassed(ch,from,to)) return {from,to,len,attempt,passed:true};  // completed — stop so it can be claimed
+    from=iso(addD(parse(from),len)); attempt++;                   // that run failed; the next starts straight after
   }
   return {from,to:iso(addD(parse(from),len-1)),len,attempt};
+}
+function chPassed(ch,from,to){
+  const days=daysBetween(from,to);
+  if(!days.every(d=>chDayOk(ch,d))) return false;
+  if(!softNeeds(ch).every(k=>days.filter(d=>needOk(k,d)).length>=tolOf(ch,k))) return false;
+  const a=chAvg(ch,days);
+  return !a||a.ok;
 }
 function chState(ch){
   const win=chWindow(ch), today=todayISO();
@@ -1517,41 +1730,75 @@ function chState(ch){
   const missed=days.filter(d=>d<today&&!chDayOk(ch,d));
   const left=days.filter(d=>d>today);
   const nextFrom=iso(addD(parse(win.from),win.len));
+  // A tolerant need can still run out of road: once the days already banked
+  // plus the days still to come cannot reach the minimum, the run is gone.
+  const soft=softNeeds(ch).map(k=>{
+    const got=days.filter(d=>d<=today&&needOk(k,d)).length;
+    const need=tolOf(ch,k);
+    return {k,got,need,left:left.length,dead:got+left.length<need};
+  });
+  const broken=chWindowBroken(ch,win.from,win.to);
+  const avg=chAvg(ch,days);
   let state;
-  if(ch.claimed)              state='claimed';
-  else if(days[0]>today)      state='upcoming';
-  else if(missed.length)      state='broken';
-  else if(!left.length && !days.some(d=>d===today&&!chDayOk(ch,d))) state='won';
-  else                        state='running';
-  return {days,done,missed,left,state,win,nextFrom,attempt:win.attempt};
+  if(ch.claimed)                        state='claimed';
+  else if(days[0]>today)                state='upcoming';
+  else if(broken)                       state='broken';
+  else if(!left.length && !days.some(d=>d===today&&!chDayOk(ch,d)))
+    state=chPassed(ch,win.from,win.to)?'won':'broken';
+  else                                  state='running';
+  return {days,done,missed,left,state,win,nextFrom,attempt:win.attempt,soft,avg};
 }
 function chBar(ch){
   const st=chState(ch), today=todayISO();
   return `<div class="chBar">${st.days.map(d=>{
-    const cls = d>today ? 'fut' : chDayOk(ch,d) ? 'ok' : d===today ? 'now' : 'miss';
-    return `<div class="chBox ${cls}" title="${fmtD(d)}"><span>${parse(d).getDate()}</span></div>`;
+    const x=excuseOn(d);
+    const cls = x ? 'exc' : d>today ? 'fut' : chDayOk(ch,d) ? 'ok' : d===today ? 'now' : 'miss';
+    return `<div class="chBox ${cls}" title="${fmtD(d)}${x?' — '+x.why:''}"><span>${x?'~':parse(d).getDate()}</span></div>`;
   }).join('')}</div>`;
 }
 function challengeCard(ch,compact){
   const st=chState(ch);
-  const needTxt=(ch.needs||[]).map(k=>CH_NEEDS[k].t.toLowerCase()).join(' + ');
+  const needTxt=hardNeeds(ch).map(k=>CH_NEEDS[k].t.toLowerCase()).join(' + ')||'nothing set';
   const dayName=d=>parse(d).toLocaleDateString('en-GB',{weekday:'long'});
+  const chained=ch.after&&(DB.challenges||[]).find(c=>c.id===ch.after);
   const restart = ch.repeat
     ? ` The next run starts ${dayName(st.nextFrom)} ${fmtD(st.nextFrom).replace(/^\w+, /,'')}.`
     : ' Reset the dates and start it again when you are ready.';
+  const brokenWhy = st.missed.length
+    ? `Missed ${st.missed.length} day${st.missed.length===1?'':'s'}`
+    : st.soft.some(s=>s.dead)
+      ? `Not enough days left to reach ${st.soft.find(s=>s.dead).need} × ${CH_NEEDS[st.soft.find(s=>s.dead).k].t.toLowerCase()}`
+      : st.avg&&!st.avg.ok ? `The average came in at ${Math.round(st.avg.avg)} kcal against a target of ${st.avg.target}`
+      : 'The run did not hold';
   const msg={
-    upcoming:`Starts ${fmtD(st.win.from)}. ${st.days.length} days, every one of them.`,
+    upcoming:`Starts ${fmtD(st.win.from)}. ${st.days.length} days.${chained?` It moves with ${chained.reward} — miss that and this slides a week too.`:''}`,
     running:`${st.done.length} of ${st.days.length} banked${chDayOk(ch,todayISO())?' — today is already in':' · today still to do'}.`,
-    broken:`Missed ${st.missed.length} day${st.missed.length===1?'':'s'}, so this run is gone.${restart}`,
+    broken:`${brokenWhy}, so this run is gone.${restart}`,
     won:`All ${st.days.length} days. Go and claim it.`,
     claimed:`Done and claimed.`
   }[st.state];
+  // the parts that are not simply "every day"
+  let extra='';
+  st.soft.forEach(s=>{
+    extra+=`<div class="chSub"><span>${CH_NEEDS[s.k].t}</span>
+      <b class="${s.dead?'bad':s.got>=s.need?'good':''}">${s.got} / ${s.need} days</b></div>`;
+  });
+  const exc=excusedIn(st.win.from,st.win.to);
+  if(exc.length) extra+=`<div class="chSub"><span>Days written off</span>
+    <b class="${exc.length>2?'bad':''}">${exc.length}</b></div>`
+    +`<div class="muted" style="font-size:12px;margin-top:2px;line-height:1.5">${
+      exc.map(d=>`${fmtD(d).replace(/^\w+, /,'')} — ${excuseOn(d).why}`).join('<br>')}</div>`;
+  if(st.avg) extra+=`<div class="chSub"><span>Average deficit</span>
+    <b class="${st.avg.ok?'good':''}">${st.avg.n?Math.round(st.avg.avg):'—'} / ${st.avg.target} kcal</b></div>`
+    +`<div class="muted" style="font-size:12px;margin-top:2px">${st.avg&&st.avg.n?`${st.avg.logged} of ${st.avg.n} days entered — a blank day counts as zero.${st.avg.skipped?` ${st.avg.skipped} written off and left out of the average.`:''}`:''}</div>`;
+
   return `<div class="card">
     <div class="row"><div style="flex:1;min-width:0">
       <h3>${ch.reward||ch.name}</h3>
       <div class="muted">${fmtD(st.win.from).replace(/^\w+, /,'')} – ${fmtD(st.win.to).replace(/^\w+, /,'')} · ${needTxt} every day${ch.repeat&&st.attempt>1?` · attempt ${st.attempt}`:''}</div>
     </div>${st.state==='won'?pill('ontrack'):st.state==='broken'?pill('offtrack'):st.state==='claimed'?pill('bonus'):pill('inprogress')}</div>
     ${chBar(ch)}
+    ${extra}
     <div class="note">${msg}</div>
     ${st.state==='won'&&!ch.claimed?`<button class="btn primary mt" onclick="claimChallenge('${ch.id}')">Claim it</button>`:''}
     ${compact?'':`<div class="btnrow mt">
@@ -1566,6 +1813,34 @@ const liveChallenges=()=>(DB.challenges||[]).filter(c=>{
   const st=chState(c);
   if(st.state==='claimed') return false;
   return c.repeat || ['running','upcoming','won'].includes(st.state); });
+
+/* Coach notes are written against a week and shown on that week in Progress,
+   which is the right place to read one — and the wrong place to find an old
+   one. This lists them all. */
+function vReviews(){
+  let h=backBar();
+  const keys=Object.keys(DB.notes||{}).sort().reverse();
+  if(!keys.length){
+    h+=`<div class="banner b-info">${I.alert}<div>No reviews yet. Export a review pack from Sync, send it over, and paste the write-up into Progress → Coach note. It will appear here and stay here.</div></div>`;
+    view.innerHTML=h; return;
+  }
+  h+=`<div class="muted" style="margin-bottom:12px">${keys.length} review${keys.length===1?'':'s'}, newest first. Tap one to open that week in Progress.</div>`;
+  keys.forEach(mon=>{
+    const n=DB.notes[mon], end=iso(addD(parse(mon),6));
+    const first=n.text.split(/\n/).find(l=>l.trim())||'';
+    h+=`<div class="card">
+      <div class="row"><div style="flex:1;min-width:0">
+        <h3>${weekTitle(parse(mon))}</h3>
+        <div class="muted">${fmtD(mon).replace(/^\w+, /,'')} – ${fmtD(end).replace(/^\w+, /,'')} · written ${fmtD(n.at).replace(/^\w+, /,'')}</div>
+      </div></div>
+      <div class="noteBody mt">${n.text.replace(/</g,'&lt;').split(/\n{2,}/).map(p=>`<p>${p.replace(/\n/g,'<br>')}</p>`).join('')}</div>
+      <button class="btn ghost mt" onclick="openReviewWeek('${mon}')">Open that week in Progress</button>
+    </div>`;
+  });
+  view.innerHTML=h;
+}
+window.openReviewWeek=mon=>{ PW=mon===weekKey(new Date())?null:mon; TAB='progress'; MORE=null;
+  window.scrollTo(0,0); render(); };
 
 function vChallenge(){
   let h=backBar();
@@ -1582,6 +1857,13 @@ function vChallenge(){
       <label class="f mt">Every day needs</label>
       ${Object.keys(CH_NEEDS).map(k=>`<label class="chNeed"><input type="checkbox" id="chN_${k}" ${(ch.needs||[]).includes(k)?'checked':''}>
         <span><b>${CH_NEEDS[k].t}</b><br><span class="muted">${CH_NEEDS[k].d}</span></span></label>`).join('')}
+      <div class="grid2 mt">
+        <div><label class="f">Sleep needed on (days)</label>
+          <input id="chTolSleep" inputmode="numeric" placeholder="all" value="${(ch.tol||{}).sleep8??''}"></div>
+        <div><label class="f">Avg daily deficit (kcal)</label>
+          <input id="chAvg" inputmode="numeric" placeholder="off" value="${ch.avgDeficit??''}"></div>
+      </div>
+      <div class="muted" style="margin-top:6px">Leave the first blank and sleep has to be hit every day. The second judges the whole window on the average, not day by day.</div>
       <label class="chNeed" style="border-top:1px solid var(--border);margin-top:8px;padding-top:12px">
         <input type="checkbox" id="chRepeat" ${ch.repeat?'checked':''}>
         <span><b>Start again if I break it</b><br><span class="muted">Break the run and the next one begins the same weekday after this window ends — no restarting on the spot.</span></span></label>
@@ -1606,8 +1888,11 @@ window.editChallenge=id=>{ CH_EDIT=id; window.scrollTo(0,0); render(); };
 window.saveChallenge=id=>{
   const g=x=>document.getElementById(x);
   const needs=Object.keys(CH_NEEDS).filter(k=>g('chN_'+k)&&g('chN_'+k).checked);
+  const num=x=>{const v=parseFloat((g(x)||{}).value);return isNaN(v)?null:v;};
+  const tolSleep=num('chTolSleep'), avg=num('chAvg');
   const rec={id:id||('ch'+Date.now()), reward:(g('chReward').value||'').trim()||'A reward',
              from:g('chFrom').value, to:g('chTo').value, needs:needs.length?needs:['move'],
+             tol:tolSleep!=null?{sleep8:tolSleep}:{}, avgDeficit:avg,
              repeat:!!(g('chRepeat')&&g('chRepeat').checked), claimed:false};
   if(rec.to<rec.from){ alert('The end date is before the start date.'); return; }
   DB.challenges=DB.challenges||[];
@@ -1668,7 +1953,8 @@ function render(){
     pre ? pill(daysToStart()===1?'starting':'soon') : pill(ws.state);
   const MT={reward:'Reward ladder',membership:'Membership',            fuel:'Nutrition',review:'Progress review',niggles:'Niggles',random:'Random workout',
             log:'Log an activity',library:'Library',sync:'Sync details',history:'History',
-            recovery:'Recovery session',equipment:'Equipment library',challenge:'Challenges'};
+            recovery:'Recovery session',equipment:'Equipment library',challenge:'Challenges',
+            reviews:'Reviews'};
   const T={today:'Today',week:'This week',progress:'Progress',
            more:MORE?MT[MORE]:'More',plan:'The plan'};
   document.getElementById('hdrTitle').textContent=T[TAB];
@@ -1679,7 +1965,8 @@ function render(){
   if(TAB==='more'){ MORE?({reward:vReward,membership:vMembership,
       fuel:vFuel,review:vReview,niggles:vNiggles,random:vRandom,log:vLog,
       library:vLibrary,sync:vSync,history:vHistory,
-      recovery:vRecovery,equipment:vEquipment,challenge:vChallenge})[MORE]() : vMore(); }
+      recovery:vRecovery,equipment:vEquipment,challenge:vChallenge,
+      reviews:vReviews})[MORE]() : vMore(); }
   else ({today:vToday,week:vWeek,progress:vProgress,plan:vPlan})[TAB]();
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===TAB));
 }
@@ -1733,6 +2020,14 @@ function vToday(){
     ${S.tip?`<div class="note">${S.tip}</div>`:''}
   </div>`;
   h+=replaceCard(ds,type,e);
+  h+=excuseCard(ds);
+  if(ds===todayISO()&&!isExcused(ds)&&!loggedOk(ds)){
+    const st=logStreak();
+    h+=`<div class="banner b-warn" onclick="TAB='more';MORE='fuel';render()" style="cursor:pointer">${I.alert}<div>
+      <b>Food not logged today.</b> ${st?`${st}-day streak on the line.`:'Nothing logged yesterday either.'}
+      <div class="muted" style="margin-top:4px">Tap to open Nutrition.</div>
+    </div></div>`;
+  }
   if(ds===todayISO()) liveChallenges().forEach(c=>{ h+=challengeCard(c,true); });
 
   if(isGym||(e.type==='gymA'||e.type==='gymB')){
@@ -1903,7 +2198,7 @@ function vToday(){
   // weight
   // ---- measurements: weight + body fat, any date ----
   const md=ds;
-  const mw=DB.weights[md], mbf=DB.bodyfat[md];
+  const mw=DB.weights[md], mbf=DB.bodyfat[md], msl=(DB.sleep||{})[md];
   const lastBf=lastBodyFat(md);
   h+=`<div class="card mt2">
     <div class="row"><h3>Measurements</h3>
@@ -1931,6 +2226,16 @@ function vToday(){
       </div>
       ${mbf!=null?`<div class="measOk">${I.check}<span>${mbf}% logged for ${isToday?'today':fmtD(md).replace(/^\w+, /,'')}</span></div>`
                  :`<div class="measNo">Not logged${lastBf?` · last scan ${lastBf.v}% on ${fmtD(lastBf.d).replace(/^\w+, /,'')}`:''}</div>`}
+    </div>
+
+    <div class="measRow">
+      <div class="measLbl">Sleep <span>hours</span></div>
+      <div class="measIn">
+        <input id="slIn" inputmode="decimal" placeholder="—" value="${msl??''}">
+        <button class="btn ${msl!=null?'':'primary'}" onclick="submitSleep()">${msl!=null?'Update':'Log'}</button>
+      </div>
+      ${msl!=null?`<div class="measOk"${msl<8?' style="color:var(--warning)"':''}>${I.check}<span>${msl} h logged${msl>=8?'':' — under 8'}</span></div>`
+                 :`<div class="measNo">Not logged${isToday?' today':' for this day'}</div>`}
     </div>
 
     <div class="note">${trendTxt()}. Weigh in the same conditions each time — after the bathroom, before food. Body Hub monthly, not weekly.</div>
@@ -2054,6 +2359,20 @@ window.submitBodyFat=()=>{
   const el=document.getElementById('bfIn'); if(!el) return;
   const d=curDate(), n=parseFloat(el.value);
   if(isNaN(n)) delete DB.bodyfat[d]; else DB.bodyfat[d]=Math.round(n*10)/10;
+  save(); render();
+};
+window.submitKcal=()=>{
+  const el=document.getElementById('kcIn'); if(!el) return;
+  const d=FUEL_DATE||todayISO(), n=parseFloat(el.value);
+  DB.kcal=DB.kcal||{};
+  if(isNaN(n)) delete DB.kcal[d]; else DB.kcal[d]=Math.round(n);
+  save(); render();
+};
+window.submitSleep=()=>{
+  const el=document.getElementById('slIn'); if(!el) return;
+  const d=curDate(), n=parseFloat(el.value);
+  DB.sleep=DB.sleep||{};
+  if(isNaN(n)) delete DB.sleep[d]; else DB.sleep[d]=Math.round(n*10)/10;
   save(); render();
 };
 
@@ -2789,7 +3108,12 @@ function census(d){
       ['Club visits',         (d.visits||[]).length],
       ['Niggles',             (d.niggles||[]).length],
       ['Coach notes',         Object.keys(d.notes||{}).length],
-      ['Challenges',          (d.challenges||[]).length]
+      ['Challenges',          (d.challenges||[]).length],
+      ['Sleep nights',        Object.keys(d.sleep||{}).length],
+      ['Deficit days',        Object.keys(d.kcal||{}).length],
+      ['Days written off',    Object.keys(d.excused||{}).length],
+      ['Food days imported',  Object.keys(d.food||{}).length],
+      ['Exercise days imported', Object.keys(d.burn||{}).length]
     ],
     first:dates[0]||null, last:dates[dates.length-1]||null,
     bytes:JSON.stringify(d).length
@@ -2798,6 +3122,169 @@ function census(d){
 const censusLine=d=>{ const c=census(d);
   return `${Object.keys(d.log||{}).length} session days, ${Object.keys(d.weights||{}).length} weights, ${Object.keys(d.bodyfat||{}).length} scans`; };
 
+/* ------------------------------------------------------------
+   MYFITNESSPAL IMPORT
+   MFP has no usable public API, so the route is their CSV export
+   (Premium) dropped in here. The parser reads the header row and
+   finds columns by fuzzy name, rather than assuming a fixed
+   layout — MFP has changed its export format before and will
+   again, and a rigid parser would break silently.
+   ------------------------------------------------------------ */
+function parseCSV(text){
+  const rows=[]; let row=[], cell='', q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){
+      if(c==='"'&&text[i+1]==='"'){cell+='"';i++;}
+      else if(c==='"') q=false;
+      else cell+=c;
+    } else if(c==='"') q=true;
+    else if(c===','){row.push(cell);cell='';}
+    else if(c==='\n'){row.push(cell);rows.push(row);row=[];cell='';}
+    else if(c!=='\r') cell+=c;
+  }
+  if(cell.length||row.length){row.push(cell);rows.push(row);}
+  return rows.filter(r=>r.some(v=>String(v).trim()!==''));
+}
+// find a column whose header contains all of `must` and none of `not`
+function findCol(head,must,not){
+  const h=head.map(x=>String(x).toLowerCase().trim());
+  for(let i=0;i<h.length;i++){
+    if(!must.every(m=>h[i].includes(m))) continue;
+    if((not||[]).some(n=>h[i].includes(n))) continue;
+    return i;
+  }
+  return -1;
+}
+const toNum=v=>{ const n=parseFloat(String(v).replace(/[^0-9.\-]/g,'')); return isNaN(n)?null:n; };
+function normDate(v){
+  const s=String(v).trim();
+  let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);            if(m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);          // MFP exports US order
+  if(m) return `${m[3]}-${String(m[1]).padStart(2,'0')}-${String(m[2]).padStart(2,'0')}`;
+  const d=new Date(s); return isNaN(d)?null:iso(d);
+}
+/* Turns any MFP nutrition CSV — per-meal rows or daily summary — into one
+   record per day. Rows for the same date are summed, so a meal-level export
+   collapses correctly without needing to know which kind it is. */
+function parseMFP(text){
+  const rows=parseCSV(text); if(rows.length<2) return {days:{},err:'That file has no rows in it.'};
+  const head=rows[0];
+  const cDate=findCol(head,['date']);
+  const cKcal=findCol(head,['calorie'],['from','burn','net']);
+  const cProt=findCol(head,['protein']);
+  const cCarb=findCol(head,['carb']);
+  const cFat =findCol(head,['fat'],['saturat','trans','poly','mono']);
+  if(cDate<0||cKcal<0) return {days:{},err:'Could not find a date and a calories column. Is this the Nutrition export?'};
+  const cMeal=findCol(head,['meal']);
+  const days={};
+  rows.slice(1).forEach(r=>{
+    const d=normDate(r[cDate]); if(!d) return;
+    const rec=days[d]||(days[d]={kcal:0,protein:0,carbs:0,fat:0,meals:0,by:{}});
+    rec.kcal   += toNum(r[cKcal])||0;
+    if(cProt>=0) rec.protein += toNum(r[cProt])||0;
+    if(cCarb>=0) rec.carbs   += toNum(r[cCarb])||0;
+    if(cFat >=0) rec.fat     += toNum(r[cFat])||0;
+    // keep it per meal too — this is what shows WHERE the protein is missing
+    if(cMeal>=0){
+      const m=String(r[cMeal]||'').trim()||'Other';
+      const b=rec.by[m]||(rec.by[m]={kcal:0,protein:0});
+      b.kcal+=toNum(r[cKcal])||0; b.protein+=toNum(r[cProt])||0;
+    }
+  });
+  Object.keys(days).forEach(d=>{
+    const r=days[d];
+    ['kcal','protein','carbs','fat'].forEach(k=>r[k]=Math.round(r[k]));
+    Object.keys(r.by).forEach(m=>{ r.by[m].kcal=Math.round(r.by[m].kcal); r.by[m].protein=Math.round(r.by[m].protein); });
+    r.meals=Object.keys(r.by).length;
+    if(!r.kcal) delete days[d];                 // a zero day is a blank day
+  });
+  return {days,err:null};
+}
+/* The Exercise summary from the same export. Two kinds of row: real sessions
+   with a calorie figure, and a daily "MFP iOS calorie adjustment" carrying the
+   step count. Both are worth having — the sessions for the burn, the steps
+   because they are the only measure of what happens on the other 22 hours. */
+function parseMFPExercise(text){
+  const rows=parseCSV(text); if(rows.length<2) return {days:{},err:'That file has no rows in it.'};
+  const head=rows[0];
+  const cDate=findCol(head,['date']);
+  const cName=findCol(head,['exercise'],['calorie','minute']);
+  const cKcal=findCol(head,['exercise','calorie']);
+  const cMin =findCol(head,['exercise','minute']);
+  const cStep=findCol(head,['step']);
+  if(cDate<0||cKcal<0) return {days:{},err:'Could not find a date and an exercise calories column. Is this the Exercise export?'};
+  const days={};
+  rows.slice(1).forEach(r=>{
+    const d=normDate(r[cDate]); if(!d) return;
+    const rec=days[d]||(days[d]={burn:0,mins:0,steps:0,items:[]});
+    const name=String(r[cName]||'').replace(/"/g,'').trim();
+    const isAdj=/calorie adjustment/i.test(name);
+    rec.burn += toNum(r[cKcal])||0;
+    if(cStep>=0) rec.steps=Math.max(rec.steps,toNum(r[cStep])||0);
+    // a step adjustment is not a session — do not let it pad the minutes
+    if(!isAdj){ rec.mins += toNum(r[cMin])||0; if(name) rec.items.push(name); }
+  });
+  Object.keys(days).forEach(d=>{ const x=days[d];
+    x.burn=Math.round(x.burn); x.mins=Math.round(x.mins); x.steps=Math.round(x.steps); });
+  return {days,err:null};
+}
+window.importMFPExercise=el=>{
+  const f=el.files&&el.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    const {days,err}=parseMFPExercise(String(r.result));
+    if(err){ alert(err); el.value=''; return; }
+    const dates=Object.keys(days).sort();
+    if(!dates.length){ alert('No dated rows in that file.'); el.value=''; return; }
+    DB.burn=DB.burn||{}; DB.steps=DB.steps||{};
+    dates.forEach(d=>{ DB.burn[d]=days[d].burn; if(days[d].steps) DB.steps[d]=days[d].steps; });
+    recalcDeficits(); save(); render();
+    alert(`Imported ${dates.length} day${dates.length===1?'':'s'} of exercise and steps.`);
+    el.value='';
+  };
+  r.readAsText(f);
+};
+/* Deficit = what you burned that day, minus what you ate. Baseline is life
+   without training; imported session burns are added on top, so a game day
+   and a rest day are not treated as the same. */
+function recalcDeficits(){
+  const base=Number(DB.settings.maintenance)||MAINT_DEFAULT;
+  DB.kcal=DB.kcal||{};
+  Object.keys(DB.food||{}).forEach(d=>{
+    DB.kcal[d]=Math.round(base+((DB.burn||{})[d]||0)-DB.food[d].kcal);
+  });
+}
+window.importMFP=el=>{
+  const f=el.files&&el.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    const {days,err}=parseMFP(String(r.result));
+    if(err){ alert(err); el.value=''; return; }
+    const dates=Object.keys(days).sort();
+    if(!dates.length){ alert('No dated rows with calories in that file.'); el.value=''; return; }
+    const maint=Number(DB.settings.maintenance)||MAINT_DEFAULT;
+    DB.food=DB.food||{}; DB.fuel=DB.fuel||{}; DB.kcal=DB.kcal||{};
+    const N=activeProfile().nutrition;
+    dates.forEach(d=>{
+      const x=days[d];
+      DB.food[d]=x;                                     // the facts, as logged
+      // adherence ticks, derived rather than tapped
+      DB.fuel[d]=DB.fuel[d]||{};
+      if(N){ DB.fuel[d].kcal = x.kcal<=N.kcal; DB.fuel[d].protein = x.protein>=N.protein; }
+    });
+    recalcDeficits();
+    save(); render();
+    alert(`Imported ${dates.length} day${dates.length===1?'':'s'}, ${dates[0]} to ${dates[dates.length-1]}.\n\nDeficits use a baseline of ${maint} kcal plus whatever exercise was imported. Change the baseline on the Nutrition page if the scale disagrees with it.`);
+    el.value='';
+  };
+  r.readAsText(f);
+};
+window.setMaintenance=v=>{ const n=parseFloat(v);
+  DB.settings.maintenance=isNaN(n)?null:Math.round(n);
+  recalcDeficits(); save(); render();
+};
+
 window.importData=el=>{
   const f=el.files&&el.files[0]; if(!f) return;
   const r=new FileReader();
@@ -2805,6 +3292,18 @@ window.importData=el=>{
     try{
       const d=JSON.parse(r.result);
       if(!d||typeof d!=='object'||!('log' in d)) throw new Error('Not a Coach backup file');
+      // A restore REPLACES everything. If the file holds less than what is
+      // already here, that is nearly always the wrong file — an export taken
+      // from a device that was never signed in, most often. Make it say so.
+      const incoming=recordCount(d), here=recordCount();
+      if(incoming<here && !confirm(
+        `This file holds ${incoming} record${incoming===1?'':'s'}. This device has ${here}.\n\n`+
+        `Restoring will REPLACE what is here with what is in the file, and ${here-incoming} record`+
+        `${here-incoming===1?'':'s'} would be lost.\n\n`+
+        `If you meant to restore a fuller backup, cancel and check you exported it from the right device while signed in.\n\nReplace anyway?`)){
+        el.value=''; return;
+      }
+      delete d._meta;                       // export header, not data
       // Rebuild from the FILE, not from a fixed list of keys. Anything the
       // backup carries survives the restore, including keys written by a
       // newer version of the app than the one doing the restoring.
@@ -2860,11 +3359,21 @@ function reviewPack(){
   w(`- Programme week: ${weekTitle(new Date())}`);
   w(`- Body weight: ${now!=null?now.toFixed(1)+'lb (7-day average)':'not enough readings'} · start ${start}lb · goal ${goal}lb`);
   if(bfd.length) w(`- Body fat: ${DB.bodyfat[bfd[bfd.length-1]]}% on ${fmtD(bfd[bfd.length-1])}${bfd.length>1?` · first scan ${DB.bodyfat[bfd[0]]}% on ${fmtD(bfd[0])}`:''}`);
+  const exAll=excusedList();
   const openN=(DB.niggles||[]).filter(n=>!n.resolved);
   w(`- Open niggles: ${openN.length?openN.map(n=>`${n.area} (level ${n.level})`).join(', '):'none'}`);
   (DB.challenges||[]).forEach(c=>{ const st=chState(c);
     w(`- Challenge "${c.reward}": ${st.state}, ${st.done.length}/${st.days.length} days`); });
   w('');
+  if(exAll.length){
+    w('## Days written off as outside my control');
+    w('');
+    w('These days were excused, so nothing was asked of them. Read them with a');
+    w('sceptical eye — if the reasons are thin or there are a lot of them, say so.');
+    w('');
+    exAll.forEach(d=>w(`- ${d}: ${DB.excused[d].why}`));
+    w('');
+  }
 
   // ---- week by week
   w('## Week by week');
@@ -2917,6 +3426,22 @@ function reviewPack(){
   rows.forEach(r=>w(`| ${r.d} | ${r.cat} | ${r.name} | ${r.v1} | ${r.v2} | ${r.v3} | ${r.note||''} |`));
   w('');
 
+  // ---- what was actually eaten, where MyFitnessPal has been imported
+  const foodD=Object.keys(DB.food||{}).sort().slice(-30);
+  if(foodD.length){
+    w('## Food intake (last 30 imported days, from MyFitnessPal)');
+    w('');
+    w('| Date | Calories | Protein g | Carbs g | Fat g | Deficit |');
+    w('|---|---|---|---|---|---|');
+    foodD.forEach(d=>{ const x=DB.food[d];
+      w(`| ${d} | ${x.kcal} | ${x.protein} | ${x.carbs} | ${x.fat} | ${(DB.kcal||{})[d]??'—'} |`); });
+    const avg=k=>Math.round(foodD.reduce((t,d)=>t+(DB.food[d][k]||0),0)/foodD.length);
+    w('');
+    w(`Averages across those days: ${avg('kcal')} kcal, ${avg('protein')}g protein, ${avg('carbs')}g carbs, ${avg('fat')}g fat.`);
+      w(`Baseline assumed: ${DB.settings.maintenance??MAINT_DEFAULT} kcal on a day with no training, plus the burn column. Question it against the weight trend rather than taking it as given.`);
+    w('');
+  }
+
   // ---- nutrition adherence
   const fd=Object.keys(DB.fuel||{}).sort().slice(-28);
   if(fd.length){
@@ -2940,6 +3465,8 @@ function reviewPack(){
   return L.join('\n');
 }
 window.downloadPack=()=>{
+  const n=recordCount();
+  if(n<5 && !confirm(`Only ${n} record${n===1?'':'s'} on this device, so the pack would be nearly empty.\n\nIf your training data is on your phone, export from there instead — and check you are signed in.\n\nCarry on anyway?`)) return;
   const md=reviewPack();
   const b=new Blob([md],{type:'text/markdown'});
   const u=URL.createObjectURL(b),a=document.createElement('a');
@@ -2954,10 +3481,29 @@ window.copyPack=async()=>{
   catch(e){ alert('Could not copy automatically — use Download instead.'); }
 };
 
+/* How much is actually in a store. Used to stop two quiet disasters: exporting
+   from a device that has nothing on it and thinking you have a backup, and
+   importing that file over a device that does. */
+function recordCount(d){
+  d=d||DB;
+  let n=0;
+  ['log','weights','bodyfat','fuel','adhoc','recovery','notes','food','kcal','sleep','excused','bonus']
+    .forEach(k=>n+=Object.keys(d[k]||{}).length);
+  ['activities','niggles','visits','away'].forEach(k=>n+=(d[k]||[]).length);
+  return n;
+}
 window.exportData=()=>{
-  const b=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const n=recordCount();
+  if(n===0 && !confirm('There is nothing logged on this device — the file would be empty.\n\nIf your data is on another device or browser, export from that one instead, and make sure you are signed in first.\n\nDownload the empty file anyway?')) return;
+  // A small header so the next person to look at this file — including me —
+  // can tell at a glance which device and version it came from.
+  const out={_meta:{app:BUILD, exported:new Date().toISOString(),
+    signedIn:(window.Cloud&&Cloud.user&&Cloud.user.email)||null,
+    sync:(window.Cloud&&Cloud.status)||'off', records:n}, ...DB};
+  const b=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
   const u=URL.createObjectURL(b),a=document.createElement('a');
-  a.href=u;a.download='coach-data.json';a.click();URL.revokeObjectURL(u);
+  a.href=u;a.download=`coach-data-${todayISO()}.json`;a.click();
+  setTimeout(()=>URL.revokeObjectURL(u),4000);
 };
 
 /* ---------- PLAN ---------- */
@@ -3035,7 +3581,7 @@ function vPlan(){
    Entirely optional. With no config the app runs exactly as
    before, storing everything locally on the device.
    ============================================================ */
-const BUILD='2026-08-24 · v43';   // shown on the Sync tab — check this to confirm an update landed
+const BUILD='2026-08-24 · v50';   // shown on the Sync tab — check this to confirm an update landed
 const FBV='https://www.gstatic.com/firebasejs/10.12.5';
 
 /* Firebase config lives in its own file — config.js — which this file never
@@ -3235,6 +3781,7 @@ const MORE_ITEMS=[
   {k:'log',        t:'Log an activity',  d:'Runs, swims, classes, sauna — anything extra'},
   {k:'reward',     t:'Reward ladder',    d:'Earn something real for staying consistent'},
   {k:'challenge',  t:'Challenges',       d:'A fixed run of days where every one has to count'},
+  {k:'reviews',    t:'Reviews',          d:'Every coaching write-up, newest first'},
   {k:'history',    t:'History',           d:'Every session, set, run and swim you have logged — and your best lifts'},
   {k:'review',     t:'Progress review',  d:'What your numbers say to change'},
   {k:'fuel',       t:'Nutrition',        d:'Daily calorie and protein adherence'},
@@ -3563,6 +4110,12 @@ function historyRows(){
       });
     });
   });
+  // days written off
+  Object.keys(DB.excused||{}).forEach(d=>{
+    out.push({d,cat:'Other',name:'Day written off',v1:'—',v2:'—',v3:'excused',
+      note:DB.excused[d].why});
+  });
+
   // recovery sessions
   Object.keys(DB.recovery||{}).forEach(d=>{
     recList(d).forEach(w=>{
@@ -3742,7 +4295,88 @@ function vFuel(){
       <button class="btn ${f.protein?'primary':''}" onclick="setFuel('protein')">${f.protein?'✓ ':''}${N.protein}g protein</button>
     </div>
     <div class="note">Two taps, not a food diary — MyFitnessPal already does the counting. This only records whether you hit the targets, which is what we actually need at review time.</div>
+    <div class="measRow" style="margin-top:14px">
+      <div class="measLbl">Net deficit <span>kcal · + under, − over</span></div>
+      <div class="measIn">
+        <input id="kcIn" inputmode="numeric" placeholder="—" value="${(DB.kcal||{})[ds]??''}">
+        <button class="btn ${(DB.kcal||{})[ds]!=null?'':'primary'}" onclick="submitKcal()">${(DB.kcal||{})[ds]!=null?'Update':'Log'}</button>
+      </div>
+      <div class="muted" style="margin-top:6px">The one figure MyFitnessPal already shows you at the end of the day. Only needed while a calorie-average challenge is running.</div>
+    </div>
   </div>`;
+  const fd=(DB.food||{})[ds];
+  if(fd) h+=`<div class="card"><h3>From MyFitnessPal</h3>
+    <table class="mt"><tbody>
+      <tr><td>Calories</td><td class="num">${fd.kcal}${N?` <span class="muted">/ ${N.kcal}</span>`:''}</td></tr>
+      <tr><td>Protein</td><td class="num">${fd.protein} g${N?` <span class="muted">/ ${N.protein}</span>`:''}</td></tr>
+      <tr><td>Carbs</td><td class="num">${fd.carbs} g</td></tr>
+      <tr><td>Fat</td><td class="num">${fd.fat} g</td></tr>
+      ${(DB.burn||{})[ds]!=null?`<tr><td>Burned training</td><td class="num">${DB.burn[ds]} kcal</td></tr>`:''}
+      ${(DB.steps||{})[ds]!=null?`<tr><td>Steps</td><td class="num">${DB.steps[ds].toLocaleString()}</td></tr>`:''}
+    </tbody></table>
+    <div class="note">Imported, not typed. The ticks above and the deficit below were worked out from these.</div>
+  </div>`;
+
+  h+=`<div class="card"><h3>Import from MyFitnessPal</h3>
+    <div class="sec mt">Export your Nutrition data from MyFitnessPal (Premium only — More → Nutrition → Export), then drop the CSV in here. It fills the ticks, the macros and the deficit for every day in the file.</div>
+    <div class="btnrow mt">
+      <button class="btn primary" onclick="document.getElementById('mfp').click()">Nutrition CSV</button>
+      <button class="btn" onclick="document.getElementById('mfpx').click()">Exercise CSV</button>
+    </div>
+    <input type="file" id="mfp"  accept=".csv,text/csv" class="hide" onchange="importMFP(this)">
+    <input type="file" id="mfpx" accept=".csv,text/csv" class="hide" onchange="importMFPExercise(this)">
+    <div class="grid2 mt">
+      <div><label class="f">Baseline kcal, no training</label>
+        <input inputmode="numeric" value="${DB.settings.maintenance??MAINT_DEFAULT}" onchange="setMaintenance(this.value)"></div>
+      <div><label class="f">Days of food · exercise</label>
+        <input value="${Object.keys(DB.food||{}).length} · ${Object.keys(DB.burn||{}).length}" disabled></div>
+    </div>
+    <div class="note">Deficit = baseline + what you burned training − what you ate. ${MAINT_DEFAULT} is an estimate for a day with no training, from your height, weight, age and step count. If the scale moves faster or slower than it predicts over three weeks, this figure is what is wrong, not the plan.</div>
+  </div>`;
+
+  const kc=Object.keys(DB.kcal||{}).filter(d=>d>=iso(addD(new Date(),-30)));
+  if(kc.length){
+    const avg=kc.reduce((t,d)=>t+(Number(DB.kcal[d])||0),0)/kc.length;
+    h+=`<div class="card"><h3>Deficit, last 30 days</h3>
+      <div class="hero mt">${Math.round(avg)}<span class="u"> kcal/day</span></div>
+      <div class="sec">across ${kc.length} logged day${kc.length===1?'':'s'}</div>
+      <div class="note">Roughly 3,500 kcal is a pound of fat, so ${Math.round(avg)}/day is about ${(avg*7/3500).toFixed(1)}lb a week if the numbers are honest. Treat it as a direction of travel — the scale over three weeks is the real check.</div>
+    </div>`;
+  }
+  const streak=logStreak();
+  h+=`<div class="card"><h3>Logging</h3>
+    <div class="row mt" style="align-items:flex-end">
+      <div><div class="muted">Streak</div>
+        <div style="font-size:26px;font-weight:700">${streak}<span class="muted" style="font-size:14px;font-weight:600"> day${streak===1?'':'s'}</span></div></div>
+      <div class="muted" style="text-align:right;max-width:60%">Last 21 days. A day needs three meals and a believable total to count.</div>
+    </div>
+    ${logStrip(21)}
+    <div class="note">${streak>=7?'This is the part that makes everything else analysable. Keep it going.'
+      :'Your longest run so far was 7 days, so the habit is clearly available to you. What broke it was being ill and away, not the daily effort.'}</div>
+  </div>`;
+
+  // Where the protein is coming from — averaged over the imported days
+  const pd=Object.keys(DB.food||{}).filter(d=>(DB.food[d].by&&Object.keys(DB.food[d].by).length)).sort().slice(-21);
+  if(pd.length){
+    const agg={};
+    pd.forEach(d=>Object.entries(DB.food[d].by).forEach(([m,v])=>{
+      const a=agg[m]||(agg[m]={n:0,kcal:0,protein:0}); a.n++; a.kcal+=v.kcal; a.protein+=v.protein; }));
+    const order=['Breakfast','Lunch','Dinner','Snacks'];
+    const keys=Object.keys(agg).sort((a,b)=>(order.indexOf(a)+99)%99-(order.indexOf(b)+99)%99);
+    h+=`<div class="card"><h3>Where your protein comes from</h3>
+      <div class="sec mt">Averages across your last ${pd.length} imported day${pd.length===1?'':'s'}.</div>
+      <table class="mt"><thead><tr><th>Meal</th><th class="num">kcal</th><th class="num">protein</th><th class="num">kcal per 1g</th></tr></thead><tbody>
+      ${keys.map(m=>{ const a=agg[m], k=a.kcal/a.n, p=a.protein/a.n, ratio=p>0?k/p:null;
+        const bad=ratio!=null&&ratio>25;
+        return `<tr><td>${m}</td><td class="num">${Math.round(k)}</td>
+          <td class="num">${Math.round(p)} g</td>
+          <td class="num" style="color:${bad?'var(--warning)':'var(--good)'}">${ratio!=null?Math.round(ratio):'—'}</td></tr>`;
+      }).join('')}
+      </tbody></table>
+      <div class="note">The last column is the cost of a gram of protein at that meal. Under about 20 is efficient; over 30 means those calories are buying you almost nothing that protects muscle in a deficit. Fix the worst row first — it is usually cheaper than eating more.</div>
+    </div>`;
+  }
+
   h+=`<div class="card"><h3>Adherence</h3>
     <div class="row mt" style="align-items:flex-end">
       <div><div class="muted">Last 7 days</div><div style="font-size:26px;font-weight:700">${w?w.pct+'%':'—'}</div></div>
